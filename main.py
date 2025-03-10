@@ -2,6 +2,12 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 import os
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--language", type=str, default="Python")
+parser.add_argument("--task", type=str, default="print 'Hello, world!'")
+args = parser.parse_args()
 
 load_dotenv()
 
@@ -21,5 +27,5 @@ llm = ChatOpenAI(
 chain = code_prompt | llm
 
 # Use the chain with a question
-result = chain.invoke({"language": "Python", "task": "print 'Hello, world!'"})
+result = chain.invoke({"language": args.language, "task": args.task})
 print(result.content)
