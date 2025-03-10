@@ -8,6 +8,7 @@ langchain-openai = "*"
 openai = ">=1.0.0"
 python-dotenv = "==1.0.0"
 langchain = "*"
+streamlit = "*"
 
 [dev-packages]
 
