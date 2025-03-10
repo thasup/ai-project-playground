@@ -2,6 +2,10 @@
 
 A powerful web application that helps organizations generate effective Objectives and Key Results (OKRs) using AI. Built with Streamlit and OpenAI's GPT models.
 
+## 🎥 Demo
+
+https://github.com/user-attachments/assets/95b7bd3e-688e-4078-b9e5-cf37429da8f8
+
 ## ✨ Features
 
 - 🤖 AI-powered OKR generation
