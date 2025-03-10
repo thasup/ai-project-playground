@@ -25,6 +25,14 @@ This tool helps you generate Objectives and Key Results (OKRs) based on your str
 with st.sidebar:
     st.header("Configuration")
     api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
+
+    # Model selection
+    model = st.selectbox(
+        "Select Model",
+        ["gpt-3.5-turbo", "gpt-4-turbo-preview", "gpt-4o-mini", "gpt-o1-mini"],
+        help="Choose the OpenAI model to use for generation"
+    )
+
     if not api_key:
         st.warning("Please enter your OpenAI API key in the sidebar to use this tool.")
 
@@ -51,14 +59,14 @@ if api_key:
         with st.spinner("Generating your OKRs..."):
             # Create the chat model
             llm = ChatOpenAI(
-                model="gpt-4o-mini",
+                model=model,
                 openai_api_key=api_key
             )
 
             # Create prompt templates
             objective_prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are the OKR expert that helps draft effective Objectives. Objectives should be qualitative, inspiring, memorable, and relevant to what we want to achieve."),
-                ("human", "Generate a potential Objective based on the following high-level strategic priorities: {strategic_priorities}. Consider our company values: {company_values}.")
+                ("system", "You are the OKR expert that helps draft effective Objectives. Objectives should be concise, qualitative, inspiring, memorable, and relevant to what we want to achieve."),
+                ("human", "Generate only one potential Objective based on the following high-level strategic priorities: {strategic_priorities}. Consider our company values: {company_values}.")
             ])
 
             key_result_prompt = ChatPromptTemplate.from_messages([
