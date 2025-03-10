@@ -1,5 +1,6 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
 import argparse
@@ -11,10 +12,16 @@ args = parser.parse_args()
 
 load_dotenv()
 
-# Create a prompt template
+# Create the first prompt template for code generation
 code_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful assistant that provides accurate and concise answers."),
+    ("system", "You are a helpful assistant that provides accurate and concise answers. Make sure to return the code only, no other text."),
     ("human", "Write a short {language} function that will {task}")
+])
+
+# Create the second prompt template that uses the output from the first prompt
+explanation_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a helpful assistant that explains code in simple terms."),
+    ("human", "Explain this code in simple terms: {code}")
 ])
 
 # Create the chat model
@@ -23,9 +30,17 @@ llm = ChatOpenAI(
     openai_api_key=os.getenv("OPENAI_API_KEY")
 )
 
-# Create a chain that combines the prompt and the model
-chain = code_prompt | llm
+# Create chains that combine the prompts and the model
+code_chain = code_prompt | llm | StrOutputParser()
+explanation_chain = explanation_prompt | llm
 
-# Use the chain with a question
-result = chain.invoke({"language": args.language, "task": args.task})
-print(result.content)
+# First, get the code
+code_result = code_chain.invoke({"language": args.language, "task": args.task})
+
+# Then, use the code to get the explanation
+explanation_result = explanation_chain.invoke({"code": code_result})
+
+print("Generated Code:")
+print(code_result)
+print("\nExplanation:")
+print(explanation_result.content)
