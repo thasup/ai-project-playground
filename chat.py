@@ -7,6 +7,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain_core.messages import HumanMessage, AIMessage
 from dotenv import load_dotenv
 import os
+import time
 
 # Load environment variables
 load_dotenv()
@@ -19,38 +20,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
-st.markdown("""
-    <style>
-    .chat-message {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        display: flex;
-        flex-direction: column;
-        color: black;
-    }
-    .chat-message.user {
-        background-color: #e9ecef;
-    }
-    .chat-message.assistant {
-        background-color: #f0f2f6;
-    }
-    .chat-message .message-content {
-        margin-top: 0.5rem;
-    }
-    .stButton > button {
-        width: 100%;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 # Initialize session state for memory
 if "memory" not in st.session_state:
     st.session_state.memory = ConversationBufferMemory(
         return_messages=True,
         memory_key="chat_history"
     )
+    st.session_state.messages = [{"role": "assistant", "content": "Let's start chatting! 👇"}]
 
 # Sidebar configuration
 with st.sidebar:
@@ -59,7 +35,7 @@ with st.sidebar:
     with st.expander("API Keys", expanded=True):
         openai_api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
         google_api_key = st.text_input("Google API Key", type="password", value=os.getenv("GOOGLE_API_KEY", ""))
-
+    
     with st.expander("Model Settings", expanded=True):
         model_provider = st.radio(
             "Select Model Provider",
@@ -84,6 +60,7 @@ with st.sidebar:
     with st.expander("Memory Settings", expanded=True):
         if st.button("Clear Conversation History"):
             st.session_state.memory.clear()
+            st.session_state.messages = [{"role": "assistant", "content": "Conversation history cleared! 👋"}]
             st.success("Conversation history cleared!")
 
 # Set API keys
@@ -94,44 +71,79 @@ os.environ["GOOGLE_API_KEY"] = google_api_key
 st.title("💬 AI Chat")
 st.markdown("Chat with an AI that remembers your conversation context")
 
-# Display chat history
-chat_history = st.session_state.memory.load_memory_variables({})["chat_history"]
-for message in chat_history:
-    role = "user" if isinstance(message, HumanMessage) else "assistant"
-    with st.container():
-        st.markdown(f'<div class="chat-message {role}">'
-                   f'<div><strong>{"You" if role == "user" else "AI"}</strong></div>'
-                   f'<div class="message-content">{message.content}</div>'
-                   '</div>', unsafe_allow_html=True)
+# Display chat messages from history on app rerun
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        if message.get("content"):
+            st.markdown(message["content"])
+        if message.get("files"):
+            for file in message["files"]:
+                # Save the file to the 'uploads' directory
+                upload_dir = "uploads"
+                os.makedirs(upload_dir, exist_ok=True)
+                file_path = os.path.join(upload_dir, file.name)
+                with open(file_path, "wb") as f:
+                    f.write(file.getbuffer())
+                
+                # Display image or provide a download link based on file type
+                if file.type.startswith("image/"):
+                    st.image(file)
+                else:
+                    st.download_button(
+                        label=f"Download {file.name}",
+                        data=file,
+                        file_name=file.name,
+                        mime=file.type
+                    )
 
-# Chat input
-if openai_api_key and (model_provider == "OpenAI" or google_api_key):
-    user_input = st.text_area("Your message:", key="user_input", height=100)
-    
-    if st.button("Send", type="primary"):
-        if user_input:
-            # Create the appropriate LLM based on selection
-            if model_provider == "OpenAI":
-                llm = ChatOpenAI(
-                    model=model,
-                    openai_api_key=openai_api_key
-                )
-            else:
-                llm = ChatGoogleGenerativeAI(
-                    model=model,
-                    google_api_key=google_api_key
-                )
+# Accept user input
+user_input = st.chat_input(
+    "What is up?",
+    accept_file=True,
+    file_type=["jpg", "jpeg", "png"],
+)
 
-            # Create prompt template with memory
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a helpful AI assistant that maintains context of the conversation."),
-                MessagesPlaceholder(variable_name="chat_history"),
-                ("human", "{input}")
-            ])
+if user_input:
+    # Add user message to chat history
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_input["text"],
+        "files": user_input.get("files", [])
+    })
+    with st.chat_message("user"):
+        st.markdown(user_input["text"])
+        if user_input["files"]:
+            st.image(user_input["files"][0])
 
-            # Create chain with memory
-            chain = prompt | llm | StrOutputParser()
+    # Initialize LLM based on provider
+    if model_provider == "OpenAI" and openai_api_key:
+        llm = ChatOpenAI(
+            model=model,
+            openai_api_key=openai_api_key
+        )
+    elif model_provider == "Google" and google_api_key:
+        llm = ChatGoogleGenerativeAI(
+            model=model,
+            google_api_key=google_api_key
+        )
+    else:
+        st.error("🔑 Please enter the required API key in the sidebar.")
+        st.stop()
 
+    # Create prompt template with memory
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful AI assistant that maintains context of the conversation."),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{input}")
+    ])
+
+    # Create chain with memory
+    chain = prompt | llm | StrOutputParser()
+
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = ""
+        try:
             with st.spinner("Thinking..."):
                 # Save user message to memory
                 st.session_state.memory.save_context(
@@ -142,20 +154,28 @@ if openai_api_key and (model_provider == "OpenAI" or google_api_key):
                 # Get response from AI
                 response = chain.invoke({
                     "input": user_input,
-                    "chat_history": chat_history
+                    "chat_history": st.session_state.memory.load_memory_variables({})["chat_history"]
                 })
                 
-                # Save AI response to memory
-                st.session_state.memory.save_context(
-                    {"input": ""}, 
-                    {"output": response}
-                )
-                
-                # Force refresh to show new messages
-                st.rerun()
+                # Simulate typing with cursor
+                for chunk in response.split():
+                    full_response += chunk + " "
+                    time.sleep(0.05)
+                    message_placeholder.markdown(full_response + "▌")
+                message_placeholder.markdown(full_response)
+            
+            # Save AI response to memory
+            st.session_state.memory.save_context(
+                {"input": user_input}, 
+                {"output": response}
+            )
+            
+            # Add assistant response to chat history
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+        
+        except Exception as e:
+            message_placeholder.markdown(f"Error: {str(e)}")
+            st.session_state.messages.append({"role": "assistant", "content": f"Error: {str(e)}"})
 
-else:
-    if model_provider == "OpenAI":
-        st.error("🔑 Please enter your OpenAI API key in the sidebar to use this tool.")
-    else:
-        st.error("🔑 Please enter your Google API key in the sidebar to use this tool.")
+    # Refresh to show new messages
+    st.rerun()
