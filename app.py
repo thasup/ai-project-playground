@@ -1,5 +1,6 @@
 import streamlit as st
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
@@ -24,20 +25,33 @@ This tool helps you generate Objectives and Key Results (OKRs) based on your str
 # Sidebar for API key
 with st.sidebar:
     st.header("Configuration")
-    api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
+    openai_api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
 
-    # Model selection
-    model = st.selectbox(
-        "Select Model",
+    # OpenAI model selection
+    openai_model = st.selectbox(
+        "Select OpenAI Model",
         ["gpt-3.5-turbo", "gpt-4-turbo-preview", "gpt-4o-mini", "gpt-o1-mini"],
         help="Choose the OpenAI model to use for generation"
     )
 
-    if not api_key:
-        st.warning("Please enter your OpenAI API key in the sidebar to use this tool.")
+    google_api_key = st.text_input("Google API Key", type="password", value=os.getenv("GOOGLE_API_KEY", ""))
+
+    # Google model selection
+    google_model = st.selectbox(
+        "Select Google Model",
+        ["gemini-2.0-flash", "gemini-2.0-1.5-flash"],
+        help="Choose the Google model to use for generation"
+    )
+
+    # Save API keys to environment variables
+    os.environ["OPENAI_API_KEY"] = openai_api_key
+    os.environ["GOOGLE_API_KEY"] = google_api_key
+
+    if not openai_api_key or not google_api_key:
+        st.warning("Please enter your OpenAI and Google API keys in the sidebar to use this tool.")
 
 # Main content
-if api_key:
+if openai_api_key and google_api_key:
     # Input fields
     col1, col2 = st.columns(2)
     with col1:
@@ -58,9 +72,14 @@ if api_key:
     if st.button("Generate OKRs", type="primary"):
         with st.spinner("Generating your OKRs..."):
             # Create the chat model
-            llm = ChatOpenAI(
-                model=model,
-                openai_api_key=api_key
+            openai_llm = ChatOpenAI(
+                model=openai_model,
+                openai_api_key=openai_api_key
+            )
+
+            gemini_llm = ChatGoogleGenerativeAI(
+                model=google_model,
+                google_api_key=google_api_key
             )
 
             # Create prompt templates
@@ -85,10 +104,10 @@ if api_key:
             ])
 
             # Create chains
-            objective_chain = objective_prompt | llm | StrOutputParser()
-            key_result_chain = key_result_prompt | llm | StrOutputParser()
-            initiative_chain = initiative_prompt | llm | StrOutputParser()
-            alignment_chain = alignment_prompt | llm | StrOutputParser()
+            objective_chain = objective_prompt | openai_llm | StrOutputParser()
+            key_result_chain = key_result_prompt | openai_llm | StrOutputParser()
+            initiative_chain = initiative_prompt | openai_llm | StrOutputParser()
+            alignment_chain = alignment_prompt | gemini_llm | StrOutputParser()
 
             # Generate results
             objective_result = objective_chain.invoke({
@@ -126,4 +145,4 @@ if api_key:
                 st.write(alignment_result)
 
 else:
-    st.error("Please enter your OpenAI API key in the sidebar to use this tool.") 
+    st.error("Please enter your OpenAI and Google API keys in the sidebar to use this tool.") 
