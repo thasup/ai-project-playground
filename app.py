@@ -9,69 +9,102 @@ import os
 # Load environment variables
 load_dotenv()
 
-# Set page config
+# Page config
 st.set_page_config(
     page_title="OKR Generator",
     page_icon="🎯",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Title and description
-st.title("🎯 OKR Generator")
+# Custom CSS
 st.markdown("""
-This tool helps you generate Objectives and Key Results (OKRs) based on your strategic priorities and company values.
-""")
+    <style>
+    .main {
+        padding: 2rem;
+    }
+    .stButton > button {
+        width: 100%;
+        margin-top: 1rem;
+    }
+    .output-box {
+        background-color: #f0f2f6;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+    }
+    h1 {
+        color: #0e1117;
+        margin-bottom: 2rem;
+    }
+    .subtitle {
+        color: #475569;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Main title
+st.title("🎯 OKR Generator")
+st.markdown('<p class="subtitle">Generate effective Objectives and Key Results aligned with your strategic priorities</p>', unsafe_allow_html=True)
 
 # Sidebar for API key
 with st.sidebar:
-    st.header("Configuration")
-    openai_api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
+    st.header("⚙️ Configuration")
+    
+    with st.expander("API Keys", expanded=True):
+        openai_api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
+        google_api_key = st.text_input("Google API Key", type="password", value=os.getenv("GOOGLE_API_KEY", ""))
 
-    # OpenAI model selection
-    openai_model = st.selectbox(
-        "Select OpenAI Model",
-        ["gpt-3.5-turbo", "gpt-4-turbo-preview", "gpt-4o-mini", "gpt-o1-mini"],
-        help="Choose the OpenAI model to use for generation"
-    )
+    with st.expander("Model Settings", expanded=True):
+        # OpenAI model selection
+        st.subheader("OpenAI Model")
+        openai_model = st.selectbox(
+            "Select Model",
+            ["gpt-3.5-turbo", "gpt-4-turbo-preview", "gpt-4o-mini", "gpt-o1-mini"],
+            help="Choose the OpenAI model to use for generation"
+        )
 
-    google_api_key = st.text_input("Google API Key", type="password", value=os.getenv("GOOGLE_API_KEY", ""))
-
-    # Google model selection
-    google_model = st.selectbox(
-        "Select Google Model",
-        ["gemini-2.0-flash", "gemini-2.0-1.5-flash"],
-        help="Choose the Google model to use for generation"
-    )
+        # Google model selection
+        st.subheader("Google Model")
+        google_model = st.selectbox(
+            "Select Model",
+            ["gemini-2.0-flash", "gemini-2.0-1.5-flash"],
+            help="Choose the Google model to use for generation"
+        )
 
     # Save API keys to environment variables
     os.environ["OPENAI_API_KEY"] = openai_api_key
     os.environ["GOOGLE_API_KEY"] = google_api_key
 
     if not openai_api_key or not google_api_key:
-        st.warning("Please enter your OpenAI and Google API keys in the sidebar to use this tool.")
+        st.warning("⚠️ Please enter your OpenAI and Google API keys to use this tool.")
 
 # Main content
 if openai_api_key and google_api_key:
-    # Input fields
-    col1, col2 = st.columns(2)
-    with col1:
-        strategic_priorities = st.text_area(
-            "Strategic Priorities",
-            value="Grow revenue, Expand market share, Improve customer retention",
-            help="Enter your high-level strategic priorities, separated by commas"
-        )
+    # Input fields in a clean layout
+    st.subheader("💡 Input Parameters")
+    with st.container():
+        col1, col2 = st.columns(2)
+        with col1:
+            strategic_priorities = st.text_area(
+                "Strategic Priorities",
+                value="Grow revenue, Expand market share, Improve customer retention",
+                help="Enter your organization's strategic priorities, separated by commas",
+                height=100
+            )
+        with col2:
+            company_values = st.text_area(
+                "Company Values",
+                value="Customer Partnership, Know Your Customer, Focus on Results, Build Relationships, Individual Freedom, Own Your Work, Grow Daily, Work in Public, Long-Term Stability, Be Bold, Stay Lean, Go Long",
+                help="Enter your company values, separated by commas",
+                height=100
+            )
 
-    with col2:
-        company_values = st.text_area(
-            "Company Values",
-            value="Customer Partnership, Know Your Customer, Focus on Results, Build Relationships, Individual Freedom, Own Your Work, Grow Daily, Work in Public, Long-Term Stability, Be Bold, Stay Lean, Go Long",
-            help="Enter your company values, separated by commas"
-        )
-
-    # Generate button
-    if st.button("Generate OKRs", type="primary"):
-        with st.spinner("Generating your OKRs..."):
-            # Create the chat model
+    if st.button("🚀 Generate OKRs", type="primary"):
+        with st.spinner("🔄 Generating your OKRs..."):
+            # Create the chat models
             openai_llm = ChatOpenAI(
                 model=openai_model,
                 openai_api_key=openai_api_key
@@ -125,24 +158,29 @@ if openai_api_key and google_api_key:
                 "company_values": company_values
             })
 
-            # Display results in tabs
-            tab1, tab2, tab3, tab4 = st.tabs(["Objective", "Key Results", "Initiatives", "Alignment Check"])
-
-            with tab1:
-                st.markdown("### Generated Objective")
+            # Display results in clean containers
+            st.subheader("📊 Generated OKRs")
+            
+            with st.container():
+                st.markdown('<div class="output-box">', unsafe_allow_html=True)
+                st.markdown("#### 🎯 Objective")
                 st.write(objective_result)
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            with tab2:
-                st.markdown("### Generated Key Results")
+                st.markdown('<div class="output-box">', unsafe_allow_html=True)
+                st.markdown("#### 📈 Key Results")
                 st.write(key_result_result)
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            with tab3:
-                st.markdown("### Generated Initiatives")
+                st.markdown('<div class="output-box">', unsafe_allow_html=True)
+                st.markdown("#### 🚀 Initiatives")
                 st.write(initiative_result)
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            with tab4:
-                st.markdown("### Alignment Check")
+                st.markdown('<div class="output-box">', unsafe_allow_html=True)
+                st.markdown("#### ✅ Alignment Check")
                 st.write(alignment_result)
+                st.markdown("</div>", unsafe_allow_html=True)
 
 else:
-    st.error("Please enter your OpenAI and Google API keys in the sidebar to use this tool.") 
+    st.error("🔑 Please enter your OpenAI and Google API keys in the sidebar to use this tool.")
