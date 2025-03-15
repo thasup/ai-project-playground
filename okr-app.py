@@ -52,7 +52,7 @@ st.markdown('<p class="subtitle">Generate effective Objectives and Key Results a
 # Sidebar for API key
 with st.sidebar:
     st.header("⚙️ Configuration")
-    
+
     with st.expander("API Keys", expanded=True):
         openai_api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
         google_api_key = st.text_input("Google API Key", type="password", value=os.getenv("GOOGLE_API_KEY", ""))
@@ -160,7 +160,7 @@ if openai_api_key and google_api_key:
 
             # Display results in clean containers
             st.subheader("📊 Generated OKRs")
-            
+
             with st.container():
                 st.markdown('<div class="output-box">', unsafe_allow_html=True)
                 st.markdown("#### 🎯 Objective")
