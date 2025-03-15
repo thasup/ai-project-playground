@@ -11,7 +11,7 @@ load_dotenv()
 
 # Page config
 st.set_page_config(
-    page_title="OKR Generator",
+    page_title="OKRs Generator",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -46,7 +46,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Main title
-st.title("🎯 OKR Generator")
+st.title("🎯 OKRs Generator")
 st.markdown('<p class="subtitle">Generate effective Objectives and Key Results aligned with your strategic priorities</p>', unsafe_allow_html=True)
 
 # Sidebar for API key
