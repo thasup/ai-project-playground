@@ -33,6 +33,7 @@ pipenv install
 3. Create a `.env` file in the project root and add your OpenAI API key:
 ```bash
 OPENAI_API_KEY=your-api-key-here
+GOOGLE_API_KEY=your-api-key-here
 ```
 
 4. Run the application (choose one method):

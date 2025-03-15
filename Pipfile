@@ -10,6 +10,7 @@ python-dotenv = "==1.0.0"
 langchain = "*"
 streamlit = "*"
 watchdog = "*"
+langchain-google-genai = "*"
 
 [dev-packages]
 

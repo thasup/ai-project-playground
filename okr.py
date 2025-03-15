@@ -1,4 +1,5 @@
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
@@ -36,27 +37,37 @@ alignment_prompt = ChatPromptTemplate.from_messages([
     ("human", "Assess the following Objective: '{objective}'. Does it strongly align with our company values? Explain your reasoning.")
 ])
 
-# Create the chat model
-llm = ChatOpenAI(
+# Create the OpenAI chat model
+openai_llm = ChatOpenAI(
     model="gpt-4o-mini",
     openai_api_key=os.getenv("OPENAI_API_KEY")
 )
 
-# Create chains that combine the prompts and the model
-objective_chain = objective_prompt | llm | StrOutputParser()
-key_result_chain = key_result_prompt | llm | StrOutputParser()
-initiative_chain = initiative_prompt | llm | StrOutputParser()
-alignment_chain = alignment_prompt | llm | StrOutputParser()
+# Create Gemini chat model for alignment checks
+gemini_llm = ChatGoogleGenerativeAI(
+    model="gemini-2.0-flash",
+    google_api_key=os.getenv("GOOGLE_API_KEY")
+)
 
-# First, get the code
+# Create chains that combine the prompts and the model
+objective_chain = objective_prompt | openai_llm | StrOutputParser()
+key_result_chain = key_result_prompt | openai_llm | StrOutputParser()
+initiative_chain = initiative_prompt | openai_llm | StrOutputParser()
+alignment_chain = alignment_prompt | gemini_llm | StrOutputParser()
+
+# First, get the Objective
 objective_result = objective_chain.invoke({"strategic_priorities": args.strategic_priorities, "company_values": args.company_values})
 
-# Then, use the code to get the explanation
+# Then, use the Objective to get the Key Results
 key_result_result = key_result_chain.invoke({"objective": objective_result})
+
+# Then, use the Key Results to get the Initiatives
 initiative_result = initiative_chain.invoke({
     "key_results": key_result_result,
     "objective": objective_result
 })
+
+# Then, use the Objective to get the Alignment Check
 alignment_result = alignment_chain.invoke({
     "objective": objective_result,
     "company_values": args.company_values
