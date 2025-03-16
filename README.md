@@ -12,7 +12,15 @@ This playground is built using Streamlit and OpenAI's GPT models, offering an in
 
 **OKRs Generator**:
 
+**Demo**: [Link](https://thasup-okr-generator.streamlit.app/)
+
 https://github.com/user-attachments/assets/95b7bd3e-688e-4078-b9e5-cf37429da8f8
+
+**AI Chat**:
+
+**Demo**: [Link](https://thasup-chat-bot.streamlit.app/)
+
+https://github.com/user-attachments/assets/c0e6cd68-8bbb-4975-8b32-e59df6de12b8
 
 ## ✨ Features
 
@@ -22,7 +30,7 @@ https://github.com/user-attachments/assets/95b7bd3e-688e-4078-b9e5-cf37429da8f8
   - 🎯 Understand how to structure goals and measurable outcomes.
   - 💡 Explore the alignment of initiatives with company values.
 
-- **AI Chat Interface**:
+- **AI Chat**:
   - 💬 Engage in interactive conversations with memory capabilities.
   - 🧠 Experiment with different memory techniques (Summary vs. Buffer).
   - 🔄 Maintain context across conversations.
