@@ -4,7 +4,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationSummaryMemory, ConversationBufferMemory
 from dotenv import load_dotenv
 import os
 import time
@@ -22,21 +22,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize session state for memory and chat history
-if "memory" not in st.session_state:
-    st.session_state.memory = ConversationBufferMemory(
-        return_messages=True,
-        memory_key="chat_history"
-    )
-    st.session_state.messages = [{"role": "assistant", "content": "Let's start chatting! 👇"}]
-
 # Sidebar configuration
 with st.sidebar:
     st.header("⚙️ Configuration")
-    with st.expander("API Keys", expanded=True):
+    with st.expander("Model Settings", expanded=True):
         openai_api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
         google_api_key = st.text_input("Google API Key", type="password", value=os.getenv("GOOGLE_API_KEY", ""))
-    with st.expander("Model Settings", expanded=True):
         model_provider = st.radio(
             "Select Model Provider",
             ["OpenAI", "Google"],
@@ -55,6 +46,12 @@ with st.sidebar:
                 help="Choose the Google model for chat"
             )
     with st.expander("Memory Settings", expanded=True):
+        memory_type = st.radio(
+            "Select Memory Technique",
+            ["Summary Memory", "Buffer Memory"],
+            index=0,  # Default to Conversation Summary Memory
+            help="Choose the memory technique for the chat"
+        )
         if st.button("Clear Conversation History"):
             st.session_state.memory.clear()
             st.session_state.messages = [{"role": "assistant", "content": "Conversation history cleared! 👋"}]
@@ -63,7 +60,11 @@ with st.sidebar:
     with st.expander("AI Assistant Settings", expanded=True):
         if "system_prompt" not in st.session_state:
             st.session_state.system_prompt = "You are a helpful AI assistant that maintains context of the conversation."
-        user_prompt = st.text_area("System Prompt", value=st.session_state.system_prompt)
+        user_prompt = st.text_area(
+            "System Prompt",
+            value=st.session_state.system_prompt,
+            help="Enter the system prompt for the AI assistant"
+        )
 
         # Confirm button for system prompt
         if st.button("Confirm System Prompt"):
@@ -78,12 +79,14 @@ os.environ["GOOGLE_API_KEY"] = google_api_key
 if model_provider == "OpenAI" and openai_api_key:
     llm = ChatOpenAI(
         model=model,
-        openai_api_key=openai_api_key
+        openai_api_key=openai_api_key,
+        verbose=True  # Enable verbose logging
     )
 elif model_provider == "Google" and google_api_key:
     llm = ChatGoogleGenerativeAI(
         model=model,
-        google_api_key=google_api_key
+        google_api_key=google_api_key,
+        verbose=True  # Enable verbose logging
     )
 else:
     st.error("🔑 Please enter the required API key in the sidebar.")
@@ -98,6 +101,21 @@ prompt = ChatPromptTemplate.from_messages([
 
 # Create the chain with memory and output parser
 chain = prompt | llm | StrOutputParser()
+
+# Initialize session state for memory and chat history
+if "memory" not in st.session_state:
+    if memory_type == "Summary Memory":
+        st.session_state.memory = ConversationSummaryMemory(
+            return_messages=True,
+            memory_key="chat_history",
+            llm=llm
+        )
+    else:
+        st.session_state.memory = ConversationBufferMemory(
+            return_messages=True,
+            memory_key="chat_history",
+        )
+    st.session_state.messages = [{"role": "assistant", "content": "Let's start chatting! 👇"}]
 
 # Main chat interface
 st.title("💬 AI Chat")
@@ -192,7 +210,7 @@ if user_input:
 
                 # Save the AI response to memory
                 st.session_state.memory.save_context(
-                    {"content": "",},
+                    {"content": ""},  # Save empty content for summary
                     {"output": full_response}
                 )
 
