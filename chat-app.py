@@ -184,10 +184,9 @@ if user_input:
                 st.image(f"data:{img['mime']};base64,{img['data']}", caption=img['name'])
 
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
         full_response = ""
         try:
-            with st.spinner("Thinking..."):
+            with st.spinner("Thinking...", show_time=True):
                 chat_history = st.session_state.memory.load_memory_variables({})["chat_history"]
 
                 # Save user message to memory (store text and file names)
@@ -205,7 +204,6 @@ if user_input:
                             "url": f"data:{img['mime']};base64,{img['data']}"
                         },
                     })
-
                 human_message = HumanMessage(content=content_list)
 
                 # Get response from the AI chain
@@ -231,7 +229,7 @@ if user_input:
                 })
 
         except Exception as e:
-            message_placeholder.markdown(f"Error: {str(e)}")
+            st.markdown(f"Error: {str(e)}")
             st.session_state.messages.append({"role": "assistant", "content": f"Error: {str(e)}"})
 
     # Rerun to update the interface with new messages
