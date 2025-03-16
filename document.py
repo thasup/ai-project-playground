@@ -28,7 +28,7 @@ db = Chroma.from_documents(
   collection_name="andreas_workshop"
 )
 
-results = db.similarity_search_with_score(
+results = db.max_marginal_relevance_search_by_vector(
   "How can I categorize things based on priority?",
   k=4
 )
