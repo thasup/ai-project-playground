@@ -105,7 +105,6 @@ st.markdown("Chat with an AI that remembers your conversation context")
 
 # Display chat history
 for message in st.session_state.messages:
-    print("message >>>", message)
     with st.chat_message(message["role"]):
         if message.get("content"):
             st.markdown(message["content"])
@@ -120,12 +119,10 @@ user_input = st.chat_input(
     accept_file=True,
     file_type=["jpg", "jpeg", "png", "gif", "bmp"],
 )
-print("user_input >>>", user_input)
 
 if user_input:
     # Process text input
     user_text = user_input["text"]
-    print("user_text >>>", user_text)
 
     # Process uploaded files: encode each image to base64 and store info in a list
     uploaded_images = []
@@ -165,7 +162,6 @@ if user_input:
                     {"content": json.dumps([{"text": user_text, "files": [img["name"] for img in uploaded_images]}])},
                     {"output": ""}
                 )
-                print("After saving context >>>", st.session_state.memory.load_memory_variables({}))
 
                 # Prepare content list for the AI
                 content_list = [{"type": "text", "text": user_text}]
@@ -184,12 +180,10 @@ if user_input:
                     "content": content_list,
                     "chat_history": chat_history
                 })
-                print("response >>>", response)
 
                 # Simulate typing by gradually revealing the response
                 for line in response.split("\n"):  # Split by line breaks first
                     for word in line.split():  # Then split each line into words
-                        print("word >>>", word)
                         full_response += word + " "  # Add space after each word
                         time.sleep(0.05)
                         message_placeholder.markdown(full_response + "▌")
