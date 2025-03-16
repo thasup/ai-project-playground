@@ -91,7 +91,7 @@ else:
 
 # Create a prompt template that includes conversation history
 prompt = ChatPromptTemplate.from_messages([
-    ("system", st.session_state.system_prompt),  # Use the user-defined prompt
+    ("system", st.session_state.system_prompt + "Always format your responses using \"\\n\" to indicate line breaks."),  # Use the user-defined prompt
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{content}"),
 ])
@@ -187,11 +187,17 @@ if user_input:
                 print("response >>>", response)
 
                 # Simulate typing by gradually revealing the response
-                for chunk in response.split():
-                    full_response += chunk + " "
+                for chunk in response.split("\n"):  # Split by line breaks instead of spaces
+                    print("chunk >>>", chunk)
+                    full_response += chunk + "\n"  # Add line break after each chunk
+                    # if chunk == "\n":
+                        # full_response += chunk + "\n"  # Add line break after each chunk
+                    # else:
+                    #     full_response += chunk + " "
                     time.sleep(0.05)
                     message_placeholder.markdown(full_response + "▌")
 
+                # full_response = full_response.replace("\n", "<br>")
                 message_placeholder.markdown(full_response, unsafe_allow_html=True)
 
                 # Save the AI response to memory
