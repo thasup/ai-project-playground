@@ -107,6 +107,7 @@ okr-generator/
 ## 📦 Dependencies
 
 - langchain-openai
+- langchain-google-genai
 - openai
 - python-dotenv
 - streamlit

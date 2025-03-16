@@ -138,6 +138,21 @@ user_input = st.chat_input(
     file_type=["jpg", "jpeg", "png", "gif", "bmp"],
 )
 
+def stream_response(response):
+    for line in response.split("\n"):  # Split by line breaks first
+        for word in line.split():  # Then split each line into words
+            yield word + " "  # Yield each word with a space
+            time.sleep(0.05)  # Typing delay
+        yield "\n"  # Yield a line break after each line
+
+def generate_full_response(response):
+    formattted = ""
+    for line in response.split("\n"):  # Split by line breaks first
+        for word in line.split():  # Then split each line into words
+            formattted += word + " "  # Add space after each word
+        formattted += "\n"
+    return formattted
+
 if user_input:
     # Process text input
     user_text = user_input["text"]
@@ -199,29 +214,23 @@ if user_input:
                     "chat_history": chat_history
                 })
 
-                # Simulate typing by gradually revealing the response
-                for line in response.split("\n"):  # Split by line breaks first
-                    for word in line.split():  # Then split each line into words
-                        full_response += word + " "  # Add space after each word
-                        time.sleep(0.05)
-                        message_placeholder.markdown(full_response + "▌")
-                    full_response += "\n"  # Add line break after each line
-                    message_placeholder.markdown(full_response, unsafe_allow_html=True)
+                # Format the response as a string
+                formatted_response = generate_full_response(response)
+                st.write_stream(stream_response(response))
 
                 # Save the AI response to memory
                 st.session_state.memory.save_context(
                     {"content": ""},  # Save empty content for summary
-                    {"output": full_response}
+                    {"output": formatted_response}
                 )
 
-                # Append the assistant's response to the chat history
+                # Append the assistant's formatted_response to the chat history
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": full_response,
+                    "content": formatted_response,
                 })
 
         except Exception as e:
-            print("Error >>>", e)
             message_placeholder.markdown(f"Error: {str(e)}")
             st.session_state.messages.append({"role": "assistant", "content": f"Error: {str(e)}"})
 
