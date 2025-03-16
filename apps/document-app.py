@@ -7,11 +7,10 @@ import base64
 
 # LangChain imports
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, CSVLoader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
+from langchain_text_splitters import CharacterTextSplitter
 from langchain.chains.retrieval_qa.base import RetrievalQA
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.memory import ConversationSummaryMemory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
@@ -59,7 +58,7 @@ if not openai_api_key or not google_api_key:
 
 # File upload for OKR-related documents
 uploaded_file = st.sidebar.file_uploader(
-    "Upload OKR-related documents (PDF, TXT, or CSV)", type=["pdf", "txt", "csv"]
+    "Upload an OKR-related document", type=["pdf", "txt", "csv"]
 )
 
 # A text area for customizing the system prompt
@@ -82,7 +81,7 @@ if st.sidebar.button("Update System Prompt"):
 persist_directory = "embeddings_db"  # directory to persist vector DB
 embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
 
-if uploaded_file is not None:
+if uploaded_file is not None and uploaded_file.size > 0:
     st.sidebar.info("Processing uploaded document...")
     # Read the contents of the uploaded file
     if uploaded_file.type == "application/pdf":
@@ -97,9 +96,16 @@ if uploaded_file is not None:
         st.error("Unsupported file type.")
         st.stop()
 
+    st.write(f"Processing file: {uploaded_file.name}, Type: {uploaded_file.type}")
+
     # Split document into chunks
     text_splitter = CharacterTextSplitter(separator="\n", chunk_size=200, chunk_overlap=0)
-    documents = loader.load_and_split(text_splitter=text_splitter)
+    try:
+        documents = loader.load_and_split(text_splitter=text_splitter)
+        for doc in documents:
+            print(doc.page_content)
+    except Exception as e:
+        st.error(f"Failed to load the document: {e}")
 
     # Create/update Chroma vector store
     db = Chroma.from_documents(
@@ -120,7 +126,7 @@ else:
         )
         st.sidebar.info("Loaded existing document index.")
     except Exception as e:
-        st.sidebar.warning("No document index found. Upload a document to create one.")
+        st.sidebar.warning(f"No document index found. Error: {e}")
         db = None
 
 # ========================
