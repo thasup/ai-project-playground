@@ -11,6 +11,7 @@ streamlit = "*"
 watchdog = "*"
 langchain-google-genai = "*"
 langchain-community = "*"
+chromadb = "*"
 
 [dev-packages]
 
