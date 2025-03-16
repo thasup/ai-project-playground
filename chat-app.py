@@ -187,18 +187,14 @@ if user_input:
                 print("response >>>", response)
 
                 # Simulate typing by gradually revealing the response
-                for chunk in response.split("\n"):  # Split by line breaks instead of spaces
-                    print("chunk >>>", chunk)
-                    full_response += chunk + "\n"  # Add line break after each chunk
-                    # if chunk == "\n":
-                        # full_response += chunk + "\n"  # Add line break after each chunk
-                    # else:
-                    #     full_response += chunk + " "
-                    time.sleep(0.05)
-                    message_placeholder.markdown(full_response + "▌")
-
-                # full_response = full_response.replace("\n", "<br>")
-                message_placeholder.markdown(full_response, unsafe_allow_html=True)
+                for line in response.split("\n"):  # Split by line breaks first
+                    for word in line.split():  # Then split each line into words
+                        print("word >>>", word)
+                        full_response += word + " "  # Add space after each word
+                        time.sleep(0.05)
+                        message_placeholder.markdown(full_response + "▌")
+                    full_response += "\n"  # Add line break after each line
+                    message_placeholder.markdown(full_response, unsafe_allow_html=True)
 
                 # Save the AI response to memory
                 st.session_state.memory.save_context(

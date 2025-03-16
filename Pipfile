@@ -11,6 +11,7 @@ langchain = "*"
 streamlit = "*"
 watchdog = "*"
 langchain-google-genai = "*"
+langchain-community = "*"
 
 [dev-packages]
 
