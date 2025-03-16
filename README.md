@@ -1,61 +1,69 @@
-# 🎯 OKR Generator & AI Chat
+# 🎓 AI Project Playground
 
-A powerful web application that helps organizations generate effective Objectives and Key Results (OKRs) using AI, as well as providing a chat interface for interactive conversations. Built with Streamlit and OpenAI's GPT models.
+Welcome to the **AI Project Playground**, a hands-on web application designed to help me learn and experiment with various AI concepts.
+
+This repository provides a practical environment for building small AI projects that teach essential concepts such as Large Language Models (LLMs), chains, memory management, vector databases, Retrieval-Augmented Generation (RAG), and AI agents.
+
+## 🚀 Overview
+
+This playground is built using Streamlit and OpenAI's GPT models, offering an interactive interface for users to explore and understand the underlying principles of AI development. Whether you're a beginner or an experienced developer, this project will provide you through the material example of creating AI applications.
 
 ## 🎥 Demo
+
+**OKRs Generator**:
 
 https://github.com/user-attachments/assets/95b7bd3e-688e-4078-b9e5-cf37429da8f8
 
 ## ✨ Features
 
-### OKR Generator
-- 🤖 AI-powered OKR generation
-- 🎯 Generate Objectives based on strategic priorities
-- 📊 Create measurable Key Results
-- 💡 Suggest relevant Initiatives
-- 🔍 Alignment check with company values
-- 🎨 Clean, intuitive web interface
-- 🔄 Multiple OpenAI model support
-- 🔒 Secure API key management
+### Learning Modules
+- **OKRs Generator**: 
+  - 🤖 Generate Objectives and Key Results using AI.
+  - 🎯 Understand how to structure goals and measurable outcomes.
+  - 💡 Explore the alignment of initiatives with company values.
 
-### AI Chat
-- 💬 Interactive chat interface with memory capabilities
-- 🧠 Experiment between Conversation Summary Memory and Conversation Buffer Memory
-- 🔄 Maintain context of conversations
-- 🎨 User-friendly design
-- 🎹 Smooth Typing effect
+- **AI Chat Interface**:
+  - 💬 Engage in interactive conversations with memory capabilities.
+  - 🧠 Experiment with different memory techniques (Summary vs. Buffer).
+  - 🔄 Maintain context across conversations.
 
-## 🚀 Quick Start
+### Hands-On Experience
+- **LLM Exploration**: Learn how to implement and interact with various OpenAI models.
+- **Chain Management**: Understand how to create and manage chains of operations in AI workflows.
+- **Memory Techniques**: Discover how to implement memory in AI applications for context retention.
+- **Vector Databases**: Explore how to use vector databases for efficient data retrieval.
+- **RAG Implementation**: Learn how to enhance AI responses with external data sources.
+- **AI Agents**: Experiment with building intelligent agents that can perform tasks autonomously.
 
-1. Clone the repository:
+## 🛠️ Quick Start
+
+1. **Clone the repository**:
    ```bash
    git clone <your-repository-url>
-   cd okr-generator
+   cd ai-project-playground
    ```
 
-2. Install dependencies using pipenv:
+2. **Install dependencies using pipenv**:
    ```bash
    pipenv install
    ```
 
-3. Create a `.env` file in the project root and add your OpenAI and Google API keys:
+3. **Create a `.env` file in the project root and add your API keys**:
    ```bash
    OPENAI_API_KEY=your-openai-api-key-here
    GOOGLE_API_KEY=your-google-api-key-here
    ```
 
-4. Run the application (choose one method):
-
-   **Method 1 - Activate virtual environment first (recommended for development):**
-   ```bash
-   pipenv shell
-   streamlit run app.py
-   ```
-
-   **Method 2 - Run directly with pipenv:**
-   ```bash
-   pipenv run streamlit run app.py
-   ```
+4. **Run the application** (choose one method):
+   - **Method 1 - Activate virtual environment first (recommended for development)**:
+     ```bash
+     pipenv shell
+     streamlit run app.py
+     ```
+   - **Method 2 - Run directly with pipenv**:
+     ```bash
+     pipenv run streamlit run app.py
+     ```
 
 ## 🛠️ Configuration
 
@@ -96,7 +104,7 @@ The application can be configured through the web interface:
 ## 🏗️ Project Structure
 
 ```
-okr-generator/
+ai-project-playground/
 ├── app.py              # Main Streamlit application for OKR generation
 ├── chat-app.py         # Streamlit application for interactive AI chat
 ├── Pipfile             # Dependency management
@@ -118,3 +126,7 @@ okr-generator/
 - API keys are stored securely in environment variables.
 - No API keys are stored in the code or repository.
 - Secure password input field for API key entry.
+
+---
+
+This playground is designed to be a learning resource for anyone interested in AI development. Dive in, experiment, and enhance your understanding of AI concepts!

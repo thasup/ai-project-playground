@@ -24,7 +24,7 @@ documents = loader.load_and_split(text_splitter=text_splitter)
 db = Chroma.from_documents(
   documents,
   embedding=embeddings,
-  persist_directory="./emb",
+  persist_directory="emb",
   collection_name="andreas_workshop"
 )
 
