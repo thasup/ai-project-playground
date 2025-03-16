@@ -10,7 +10,6 @@ import os
 import time
 import base64
 import json
-import httpx
 
 # Load environment variables
 load_dotenv()
@@ -60,6 +59,16 @@ with st.sidebar:
             st.session_state.memory.clear()
             st.session_state.messages = [{"role": "assistant", "content": "Conversation history cleared! 👋"}]
             st.success("Conversation history cleared!")
+    # New expander for system prompt
+    with st.expander("AI Assistant Settings", expanded=True):
+        if "system_prompt" not in st.session_state:
+            st.session_state.system_prompt = "You are a helpful AI assistant that maintains context of the conversation."
+        user_prompt = st.text_area("System Prompt", value=st.session_state.system_prompt)
+
+        # Confirm button for system prompt
+        if st.button("Confirm System Prompt"):
+            st.session_state.system_prompt = user_prompt  # Update session state with user-defined prompt
+            st.success("System prompt updated!")
 
 # Set API keys as environment variables
 os.environ["OPENAI_API_KEY"] = openai_api_key
@@ -82,7 +91,7 @@ else:
 
 # Create a prompt template that includes conversation history
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful AI assistant that maintains context of the conversation."),
+    ("system", st.session_state.system_prompt),  # Use the user-defined prompt
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{content}"),
 ])
@@ -139,10 +148,10 @@ if user_input:
     # Display user message in chat interface
     with st.chat_message("user"):
         if user_text:
-            st.markdown(user_text)
+            st.markdown(user_text, unsafe_allow_html=True)
         if uploaded_images:
             for img in uploaded_images:
-                st.markdown(f"![{img['name']}](data:{img['mime']};base64,{img['data']})")
+                st.image(f"data:{img['mime']};base64,{img['data']}", caption=img['name'])
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
@@ -172,7 +181,7 @@ if user_input:
 
                 # Get response from the AI chain
                 response = chain.invoke({
-                    "content": [human_message],
+                    "content": content_list,
                     "chat_history": chat_history
                 })
                 print("response >>>", response)
@@ -182,12 +191,13 @@ if user_input:
                     full_response += chunk + " "
                     time.sleep(0.05)
                     message_placeholder.markdown(full_response + "▌")
-                message_placeholder.markdown(full_response)
+
+                message_placeholder.markdown(full_response, unsafe_allow_html=True)
 
                 # Save the AI response to memory
                 st.session_state.memory.save_context(
                     {"content": "",},
-                    {"output": response}
+                    {"output": full_response}
                 )
 
                 # Append the assistant's response to the chat history
