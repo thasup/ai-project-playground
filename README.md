@@ -12,11 +12,15 @@ This playground is built using Streamlit and OpenAI's GPT models, offering an in
 
 **OKRs Generator**:
 
+**Technique**: AI-powered goal setting and alignment checking using multiple LLMs chaining with Langchain.
+
 **Demo**: [Link](https://thasup-okr-generator.streamlit.app/)
 
 https://github.com/user-attachments/assets/95b7bd3e-688e-4078-b9e5-cf37429da8f8
 
 **AI Chat**:
+
+**Technique**: Interactive conversation management with memory techniques (Summary and Buffer).
 
 **Demo**: [Link](https://thasup-chat-bot.streamlit.app/)
 
@@ -25,7 +29,7 @@ https://github.com/user-attachments/assets/c0e6cd68-8bbb-4975-8b32-e59df6de12b8
 ## ✨ Features
 
 ### Learning Modules
-- **OKRs Generator**: 
+- **OKRs Generator**:
   - 🤖 Generate Objectives and Key Results using AI.
   - 🎯 Understand how to structure goals and measurable outcomes.
   - 💡 Explore the alignment of initiatives with company values.

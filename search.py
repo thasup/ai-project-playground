@@ -25,5 +25,9 @@ openai_llm = ChatOpenAI(
 qa = RetrievalQA.from_chain_type(
   llm=openai_llm,
   retriever=retriever,
-  return_source_documents=True
+  chain_type="stuff"
 )
+
+result = qa.run("How can I prioritize my OKRs?")
+
+print(result)
