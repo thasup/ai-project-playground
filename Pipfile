@@ -12,6 +12,9 @@ watchdog = "*"
 langchain-google-genai = "*"
 langchain-community = "*"
 chromadb = "*"
+streamlit-chat = "*"
+langchain-chroma = "*"
+pypdf2 = "*"
 
 [dev-packages]
 

@@ -7,10 +7,11 @@ import base64
 
 # LangChain imports
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, CSVLoader
-from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import CharacterTextSplitter
+from langchain_chroma import Chroma
 from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationSummaryMemory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
@@ -52,8 +53,23 @@ with st.sidebar:
                     help="Choose the Google model for chat"
                 )
 
-if not openai_api_key or not google_api_key:
-    st.error("Please set your OpenAI and Google API keys in the sidebar.")
+# Set API keys as environment variables
+os.environ["OPENAI_API_KEY"] = openai_api_key
+os.environ["GOOGLE_API_KEY"] = google_api_key
+
+# Initialize the LLM based on the chosen provider and provided API key
+if model_provider == "OpenAI" and openai_api_key:
+    llm = ChatOpenAI(
+        model=model,
+        openai_api_key=openai_api_key,
+    )
+elif model_provider == "Google" and google_api_key:
+    llm = ChatGoogleGenerativeAI(
+        model=model,
+        google_api_key=google_api_key,
+    )
+else:
+    st.error("🔑 Please enter the required API key in the sidebar.")
     st.stop()
 
 # File upload for OKR-related documents
@@ -134,7 +150,9 @@ else:
 # ========================
 if "memory" not in st.session_state:
     st.session_state.memory = ConversationSummaryMemory(
-        return_messages=True, memory_key="chat_history", llm=ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=openai_api_key)
+        return_messages=True,
+        memory_key="chat_history",
+        llm=llm
     )
     st.session_state.messages = [
         {"role": "assistant", "content": "Hello! I'm here to help you with your personal OKRs. What would you like to work on today?"}
@@ -143,7 +161,6 @@ if "memory" not in st.session_state:
 # ========================
 # Initialize LLM and QA Chain
 # ========================
-llm = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=openai_api_key, temperature=0.7)
 if db is not None:
     retriever = db.as_retriever(search_type="mmr", k=4)
     qa_chain = RetrievalQA.from_chain_type(
