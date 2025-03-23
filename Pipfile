@@ -15,9 +15,11 @@ chromadb = "*"
 streamlit-chat = "*"
 langchain-chroma = "*"
 pypdf2 = "*"
-pinecone-client = "==2.2.2"
 tiktoken = "*"
 unstructured = {extras = ["pdf"], version = "*"}
+langchain-pinecone = "*"
+pinecone-notebooks = "*"
+pinecone = "*"
 
 [dev-packages]
 

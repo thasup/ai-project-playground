@@ -1,0 +1,29 @@
+[project]
+name = "pycode"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-openai",
+    "python-dotenv==1.0.0",
+    "langchain",
+    "streamlit",
+    "watchdog",
+    "langchain-google-genai",
+    "langchain-community",
+    "chromadb",
+    "streamlit-chat",
+    "langchain-chroma",
+    "pypdf2",
+    "tiktoken",
+    "unstructured[pdf]",
+    "langchain-pinecone",
+    "pinecone-notebooks",
+    "pinecone",
+]
+
+[dependency-groups]
+dev = []
+
+[tool.uv.sources]
