@@ -1,13 +1,14 @@
-import os, tempfile
-import pinecone
+import os, tempfile, time
 from pathlib import Path
 from dotenv import load_dotenv
 
-from langchain_community.vectorstores import Chroma, Pinecone
+import pinecone
+from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders import DirectoryLoader
 from langchain_text_splitters import CharacterTextSplitter
 from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_pinecone import PineconeVectorStore
 
 import streamlit as st
 
@@ -17,8 +18,8 @@ TMP_DIR = Path(__file__).resolve().parent.joinpath('data', 'tmp')
 LOCAL_VECTOR_STORE_DIR = Path(__file__).resolve().parent.joinpath('data', 'vector_store')
 
 st.set_page_config(
-    page_title="Legal Document Expert",
-    page_icon="⚖️",
+    page_title="Document Expert",
+    page_icon="📒",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -26,13 +27,8 @@ st.set_page_config(
 # ========================
 # Main Chat Interface
 # ========================
-st.title("⚖️ Legal Document Expert")
-st.markdown(
-    "Use this tool to plan, create, execute, track, and review your legal documents. "
-)
-st.markdown(
-    "Ask questions like *'How should I prioritize my legal documents?'* or share your progress for feedback."
-)
+st.title("📒 Document Expert")
+st.markdown("Use this tool to plan, create, execute, track, and review your documents.")
 
 def load_documents():
     loader = DirectoryLoader(TMP_DIR.as_posix(), glob='**/*.pdf')
@@ -59,12 +55,51 @@ def embeddings_on_local_vectordb(texts):
         st.error(f"An error occurred while initializing Local Vector Store: {e}")
         return None  # Return None if there was an error
 
+def init_pinecone_vectorstore(embeddings):
+    try:
+        print("Initializing Pinecone vectorstore...", st.session_state.pinecone_api_key, st.session_state.pinecone_env, st.session_state.pinecone_index)
+        # Initialize Pinecone
+        pinecone.init(api_key=st.session_state.pinecone_api_key, environment=st.session_state.pinecone_env)
+
+        # Create a Pinecone client
+        existing_indexes = [index_info["name"] for index_info in pinecone.list_indexes()]
+
+        # Check if the index exists and create it if it doesn't
+        if st.session_state.pinecone_index not in existing_indexes:
+            pinecone.create_index(
+                name=st.session_state.pinecone_index,
+                dimension=1024,
+                metric="cosine",
+            )
+            while not pinecone.describe_index(st.session_state.pinecone_index).status["ready"]:
+                time.sleep(1)
+
+        index = pinecone.Index(st.session_state.pinecone_index)
+
+        vectorstore = PineconeVectorStore(index=index, embedding=embeddings)
+        return vectorstore
+    except Exception as e:
+        st.error(f"An error occurred while initializing Pinecone Vector Store: {e}")
+        return None  # Return None if there was an error
+
 def embeddings_on_pinecone(texts):
-    pinecone.init(api_key=st.session_state.pinecone_api_key, environment=st.session_state.pinecone_env)
-    embeddings = OpenAIEmbeddings(openai_api_key=st.session_state.openai_api_key)
-    vectordb = Pinecone.from_documents(texts, embeddings, index_name=st.session_state.pinecone_index)
-    retriever = vectordb.as_retriever()
-    return retriever
+    try:
+        # Initialize embeddings
+        embeddings = OpenAIEmbeddings(openai_api_key=st.session_state.openai_api_key)
+
+        # Ensure Pinecone is initialized with the correct API key and environment
+        vectorstore = init_pinecone_vectorstore(embeddings)
+
+        # Create a retriever from the vector database
+        vector_store = vectorstore.from_documents(documents=texts, embedding=embeddings)
+        retriever = vector_store.as_retriever(
+            search_type="similarity_score_threshold",
+            search_kwargs={"k": 3, "score_threshold": 0.5},
+        )
+        return retriever
+    except Exception as e:
+        st.error(f"An error occurred while initializing Pinecone Embeddings: {e}")
+        return None  # Return None if there was an error
 
 def query_llm(retriever, query):
     qa_chain = RetrievalQA.from_chain_type(
