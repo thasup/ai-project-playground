@@ -4,3 +4,6 @@ documents/*
 uploads/*
 emb/*
 .streamlit/*
+apps/data
+embeddings_db
+.chat_history.json

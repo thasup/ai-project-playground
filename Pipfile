@@ -17,6 +17,7 @@ langchain-chroma = "*"
 pypdf2 = "*"
 pinecone-client = "==2.2.2"
 tiktoken = "*"
+unstructured = {extras = ["pdf"], version = "*"}
 
 [dev-packages]
 
