@@ -45,13 +45,19 @@ def split_documents(documents):
     return texts
 
 def embeddings_on_local_vectordb(texts):
-    vectordb = Chroma.from_documents(
-        texts, embedding=OpenAIEmbeddings(openai_api_key=st.session_state.openai_api_key),
-        persist_directory=LOCAL_VECTOR_STORE_DIR.as_posix()
-    )
-    vectordb.persist()
-    retriever = vectordb.as_retriever(search_kwargs={'k': 5})
-    return retriever
+    try:
+        # Initialize embeddings
+        vectordb = Chroma.from_documents(
+            texts, embedding=OpenAIEmbeddings(openai_api_key=st.session_state.openai_api_key),
+            persist_directory=LOCAL_VECTOR_STORE_DIR.as_posix()
+        )
+        # Create a retriever from the vector database
+        vectordb.persist()
+        retriever = vectordb.as_retriever(search_kwargs={'k': 3})
+        return retriever
+    except Exception as e:
+        st.error(f"An error occurred while initializing Local Vector Store: {e}")
+        return None  # Return None if there was an error
 
 def embeddings_on_pinecone(texts):
     pinecone.init(api_key=st.session_state.pinecone_api_key, environment=st.session_state.pinecone_env)
@@ -61,11 +67,6 @@ def embeddings_on_pinecone(texts):
     return retriever
 
 def query_llm(retriever, query):
-    # qa_chain = ConversationalRetrievalChain.from_llm(
-    #     llm=OpenAIChat(openai_api_key=st.session_state.openai_api_key),
-    #     retriever=retriever,
-    #     return_source_documents=True,
-    # )
     qa_chain = RetrievalQA.from_chain_type(
         llm=ChatOpenAI(model="gpt-4o-mini", openai_api_key=st.session_state.openai_api_key),
         retriever=retriever,
