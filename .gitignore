@@ -3,3 +3,4 @@
 documents/*
 uploads/*
 emb/*
+.streamlit/*
