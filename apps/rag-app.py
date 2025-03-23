@@ -3,12 +3,11 @@ import pinecone
 from pathlib import Path
 from dotenv import load_dotenv
 
-from langchain.chains import RetrievalQA, ConversationalRetrievalChain
-from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma, Pinecone
-from langchain_community.llms import OpenAIChat
 from langchain_community.document_loaders import DirectoryLoader
 from langchain_text_splitters import CharacterTextSplitter
+from langchain.chains.retrieval_qa.base import RetrievalQA
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 import streamlit as st
 
@@ -17,9 +16,23 @@ load_dotenv()
 TMP_DIR = Path(__file__).resolve().parent.joinpath('data', 'tmp')
 LOCAL_VECTOR_STORE_DIR = Path(__file__).resolve().parent.joinpath('data', 'vector_store')
 
-st.set_page_config(page_title="RAG")
-st.title("Retrieval Augmented Generation Engine")
+st.set_page_config(
+    page_title="Legal Document Expert",
+    page_icon="⚖️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# ========================
+# Main Chat Interface
+# ========================
+st.title("⚖️ Legal Document Expert")
+st.markdown(
+    "Use this tool to plan, create, execute, track, and review your legal documents. "
+)
+st.markdown(
+    "Ask questions like *'How should I prioritize my legal documents?'* or share your progress for feedback."
+)
 
 def load_documents():
     loader = DirectoryLoader(TMP_DIR.as_posix(), glob='**/*.pdf')
@@ -32,10 +45,12 @@ def split_documents(documents):
     return texts
 
 def embeddings_on_local_vectordb(texts):
-    vectordb = Chroma.from_documents(texts, embedding=OpenAIEmbeddings(),
-                                     persist_directory=LOCAL_VECTOR_STORE_DIR.as_posix())
+    vectordb = Chroma.from_documents(
+        texts, embedding=OpenAIEmbeddings(openai_api_key=st.session_state.openai_api_key),
+        persist_directory=LOCAL_VECTOR_STORE_DIR.as_posix()
+    )
     vectordb.persist()
-    retriever = vectordb.as_retriever(search_kwargs={'k': 7})
+    retriever = vectordb.as_retriever(search_kwargs={'k': 5})
     return retriever
 
 def embeddings_on_pinecone(texts):
@@ -46,15 +61,24 @@ def embeddings_on_pinecone(texts):
     return retriever
 
 def query_llm(retriever, query):
-    qa_chain = ConversationalRetrievalChain.from_llm(
-        llm=OpenAIChat(openai_api_key=st.session_state.openai_api_key),
+    # qa_chain = ConversationalRetrievalChain.from_llm(
+    #     llm=OpenAIChat(openai_api_key=st.session_state.openai_api_key),
+    #     retriever=retriever,
+    #     return_source_documents=True,
+    # )
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=ChatOpenAI(model="gpt-4o-mini", openai_api_key=st.session_state.openai_api_key),
         retriever=retriever,
-        return_source_documents=True,
+        chain_type="stuff"
     )
-    result = qa_chain({'question': query, 'chat_history': st.session_state.messages})
-    result = result['answer']
-    st.session_state.messages.append((query, result))
-    return result
+
+    # Ensure the input dictionary has the correct keys
+    result = qa_chain({'query': query, 'chat_history': st.session_state.messages})
+
+    # Extract the answer from the result
+    answer = result['result']  # Adjusted to match the expected output structure
+    st.session_state.messages.append((query, answer))
+    return answer
 
 def input_fields():
     #
