@@ -1,6 +1,7 @@
 import os, tempfile
 import pinecone
 from pathlib import Path
+from dotenv import load_dotenv
 
 from langchain.chains import RetrievalQA, ConversationalRetrievalChain
 from langchain_community.embeddings import OpenAIEmbeddings
@@ -11,6 +12,7 @@ from langchain_text_splitters import CharacterTextSplitter
 
 import streamlit as st
 
+load_dotenv()
 
 TMP_DIR = Path(__file__).resolve().parent.joinpath('data', 'tmp')
 LOCAL_VECTOR_STORE_DIR = Path(__file__).resolve().parent.joinpath('data', 'vector_store')
@@ -61,27 +63,32 @@ def input_fields():
         if "openai_api_key" in st.secrets:
             st.session_state.openai_api_key = st.secrets.openai_api_key
         else:
-            st.session_state.openai_api_key = st.text_input("OpenAI API key", type="password")
+            st.session_state.openai_api_key = st.text_input("OpenAI API key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
         #
         if "pinecone_api_key" in st.secrets:
             st.session_state.pinecone_api_key = st.secrets.pinecone_api_key
         else:
-            st.session_state.pinecone_api_key = st.text_input("Pinecone API key", type="password")
+            st.session_state.pinecone_api_key = st.text_input("Pinecone API key", type="password", value=os.getenv("PINECONE_API_KEY", ""))
         #
         if "pinecone_env" in st.secrets:
             st.session_state.pinecone_env = st.secrets.pinecone_env
         else:
-            st.session_state.pinecone_env = st.text_input("Pinecone environment")
+            st.session_state.pinecone_env = st.text_input("Pinecone environment", value=os.getenv("PINECONE_ENV", ""))
         #
         if "pinecone_index" in st.secrets:
             st.session_state.pinecone_index = st.secrets.pinecone_index
         else:
-            st.session_state.pinecone_index = st.text_input("Pinecone index name")
+            st.session_state.pinecone_index = st.text_input("Pinecone index name", value=os.getenv("PINECONE_INDEX", ""))
     #
     st.session_state.pinecone_db = st.toggle('Use Pinecone Vector DB')
     #
     st.session_state.source_docs = st.file_uploader(label="Upload Documents", type="pdf", accept_multiple_files=True)
     #
+    # Set API keys as environment variables
+    os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
+    os.environ["PINECONE_API_KEY"] = st.session_state.pinecone_api_key
+    os.environ["PINECONE_ENV"] = st.session_state.pinecone_env
+    os.environ["PINECONE_INDEX"] = st.session_state.pinecone_index
 
 def process_documents():
     if not st.session_state.openai_api_key or not st.session_state.pinecone_api_key or not st.session_state.pinecone_env or not st.session_state.pinecone_index or not st.session_state.source_docs:
