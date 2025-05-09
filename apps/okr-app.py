@@ -139,7 +139,7 @@ if openai_api_key and google_api_key:
             # Create chains
             objective_chain = objective_prompt | openai_llm | StrOutputParser()
             key_result_chain = key_result_prompt | openai_llm | StrOutputParser()
-            initiative_chain = initiative_prompt | openai_llm | StrOutputParser()
+            initiative_chain = initiative_prompt | gemini_llm | StrOutputParser()
             alignment_chain = alignment_prompt | gemini_llm | StrOutputParser()
 
             # Generate results

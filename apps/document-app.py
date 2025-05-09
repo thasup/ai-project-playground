@@ -6,18 +6,40 @@ import json
 import base64
 
 # LangChain imports
-from langchain_community.document_loaders import PyPDFLoader, TextLoader, CSVLoader
-from langchain_text_splitters import CharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_community.document_loaders import PyMuPDFLoader, TextLoader, CSVLoader
+from langchain_community.document_loaders.parsers.pdf import (
+    PyMuPDFParser,
+)
 from langchain_chroma import Chroma
+from langchain_text_splitters import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationSummaryMemory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
+from PyPDF2 import PdfReader
 
 # Load environment variables
 load_dotenv()
+
+def pdf_read(pdf_doc):
+    text = ""
+    for pdf in pdf_doc:
+        pdf_reader = PdfReader(pdf)
+        for page in pdf_reader.pages:
+            text += page.extract_text()
+    return text
+
+def get_chunks(text):
+    text_splitter = RecursiveCharacterTextSplitter(separators=["\n"], chunk_size=200, chunk_overlap=0)
+    chunks = text_splitter.split_text(text)
+    return chunks
+
+def vector_store(text_chunks):
+    vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
+    vector_store.save_local("faiss_db")
 
 # Page config
 st.set_page_config(
@@ -73,9 +95,38 @@ else:
     st.stop()
 
 # File upload for OKR-related documents
-uploaded_file = st.sidebar.file_uploader(
-    "Upload an OKR-related document", type=["pdf", "txt", "csv"]
+uploaded_files = st.sidebar.file_uploader(
+    "Upload OKR-related documents", type=["pdf", "txt", "csv"], accept_multiple_files=True
 )
+
+# Process uploaded files and save to session state
+if uploaded_files:
+    st.sidebar.info("Processing uploaded documents...")
+    all_text_chunks = []
+
+    for uploaded_file in uploaded_files:
+        if uploaded_file.type == "application/pdf":
+            loader = PyMuPDFLoader(uploaded_file)
+            raw_text = pdf_read(uploaded_file)
+        elif uploaded_file.type == "text/plain":
+            content = uploaded_file.read().decode("utf-8")
+            loader = TextLoader(content)
+            raw_text = content
+        elif uploaded_file.type == "text/csv":
+            content = uploaded_file.read().decode("utf-8")
+            loader = CSVLoader(content)
+            raw_text = content
+        else:
+            st.error("Unsupported file type.")
+            st.stop()
+
+        # Split document into chunks
+        text_chunks = get_chunks(raw_text)
+        all_text_chunks.extend(text_chunks)
+
+    # Save all text chunks to session state
+    st.session_state.text_chunks = all_text_chunks
+    st.success("Documents processed and saved to session state!")
 
 # A text area for customizing the system prompt
 if "system_prompt" not in st.session_state:
@@ -97,53 +148,10 @@ if st.sidebar.button("Update System Prompt"):
 persist_directory = "embeddings_db"  # directory to persist vector DB
 embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
 
-if uploaded_file is not None and uploaded_file.size > 0:
-    st.sidebar.info("Processing uploaded document...")
-    # Read the contents of the uploaded file
-    if uploaded_file.type == "application/pdf":
-        loader = PyPDFLoader(uploaded_file)
-    elif uploaded_file.type == "text/plain":
-        content = uploaded_file.read().decode("utf-8")
-        loader = TextLoader(content)
-    elif uploaded_file.type == "text/csv":
-        content = uploaded_file.read().decode("utf-8")
-        loader = CSVLoader(content)
-    else:
-        st.error("Unsupported file type.")
-        st.stop()
-
-    st.write(f"Processing file: {uploaded_file.name}, Type: {uploaded_file.type}")
-
-    # Split document into chunks
-    text_splitter = CharacterTextSplitter(separator="\n", chunk_size=200, chunk_overlap=0)
-    try:
-        documents = loader.load_and_split(text_splitter=text_splitter)
-        for doc in documents:
-            print(doc.page_content)
-    except Exception as e:
-        st.error(f"Failed to load the document: {e}")
-
-    # Create/update Chroma vector store
-    db = Chroma.from_documents(
-        documents,
-        embedding=embeddings,
-        persist_directory=persist_directory,
-        collection_name="okr_documents"
-    )
-    db.persist()
-    st.sidebar.success("Document processed and indexed!")
-else:
-    # Try to load an existing index
-    try:
-        db = Chroma(
-            persist_directory=persist_directory,
-            embedding_function=embeddings,
-            collection_name="okr_documents"
-        )
-        st.sidebar.info("Loaded existing document index.")
-    except Exception as e:
-        st.sidebar.warning(f"No document index found. Error: {e}")
-        db = None
+# Create/update Chroma vector store
+db = Chroma.from_texts(st.session_state.text_chunks, embedding=embeddings)
+db.persist()
+st.sidebar.success("Document processed and indexed!")
 
 # ========================
 # Initialize Conversation Memory
@@ -161,13 +169,10 @@ if "memory" not in st.session_state:
 # ========================
 # Initialize LLM and QA Chain
 # ========================
-if db is not None:
-    retriever = db.as_retriever(search_type="mmr", k=4)
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm, retriever=retriever, chain_type="stuff"
-    )
-else:
-    qa_chain = None
+retriever = db.as_retriever(search_type="similarity", k=4)
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm, retriever=retriever, chain_type="stuff"
+)
 
 # ========================
 # Main Chat Interface

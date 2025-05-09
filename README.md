@@ -56,9 +56,14 @@ https://github.com/user-attachments/assets/c0e6cd68-8bbb-4975-8b32-e59df6de12b8
    ```
 
 2. **Install dependencies using pipenv**:
-   ```bash
-   pipenv install
-   ```
+   - **Method 1 - Use PIPENV**:
+     ```bash
+     pipenv install
+     ```
+   - **Method 2 - Use UV**:
+     ```bash
+     uv pip install -r pyproject.toml
+     ```
 
 3. **Create a `.env` file in the project root and add your API keys**:
    ```bash
@@ -67,14 +72,23 @@ https://github.com/user-attachments/assets/c0e6cd68-8bbb-4975-8b32-e59df6de12b8
    ```
 
 4. **Run the application** (choose one method):
-   - **Method 1 - Activate virtual environment first (recommended for development)**:
+   - **Method 1 - Use PIPENV to activate virtual environment first**:
      ```bash
      pipenv shell
-     streamlit run app.py
+     streamlit run apps/okr-app.py
      ```
-   - **Method 2 - Run directly with pipenv**:
+   - OR Run directly with pipenv
      ```bash
-     pipenv run streamlit run app.py
+     pipenv run streamlit run apps/okr-app.py
+     ```
+   - **Method 2 - Use UV to activate virtual environment first**:
+     ```bash
+     uv venv
+     streamlit run apps/okr-app.py
+     ```
+   - OR Run directly with UV
+     ```bash
+     uv run streamlit run apps/okr-app.py
      ```
 
 ## 🛠️ Configuration
