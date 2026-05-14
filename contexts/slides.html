@@ -1,0 +1,4141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Demystifying LLM Context Windows</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: #020209;
+        color: #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 16px 0 24px;
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      /* ── WRAPPER scales the 1280×720 stage to fit the container ── */
+      #wrap {
+        width: 100%;
+        max-width: 980px;
+        position: relative;
+      }
+      #outer {
+        width: 100%;
+        padding-bottom: 56.25%;
+        position: relative;
+        overflow: visible;
+      }
+      #stage {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1280px;
+        height: 720px;
+        transform-origin: top left;
+        border-radius: 3px;
+        box-shadow:
+          0 0 0 1px #1e1e38,
+          0 24px 80px rgba(0, 0, 0, 0.8);
+        overflow: hidden;
+        background: #07070f;
+      }
+
+      /* ── SLIDES & TRANSITIONS ── */
+      .sl {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        background: #07070f;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(15px);
+        transition:
+          opacity 0.4s ease,
+          transform 0.4s ease;
+        z-index: 1;
+      }
+      .sl.on {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+        z-index: 2;
+      }
+
+      .gl {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+          linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.015) 1px,
+            transparent 1px
+          );
+        background-size: 80px 80px;
+        pointer-events: none;
+      }
+      .sn {
+        position: absolute;
+        bottom: 24px;
+        right: 40px;
+        font-size: 11px;
+        color: #4a516a;
+        letter-spacing: 2px;
+      }
+      .sf {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #f59e0b, transparent);
+      }
+
+      /* ── CONTROLS ── */
+      #ctrl {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-top: 14px;
+        width: 100%;
+        max-width: 980px;
+        justify-content: center;
+      }
+      .cb {
+        background: #0d0d1e;
+        border: 1px solid #1e1e38;
+        color: #4a516a;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+      .cb:hover {
+        border-color: #f59e0b;
+        color: #f59e0b;
+      }
+      .cb:disabled {
+        opacity: 0.2;
+        cursor: default;
+      }
+      #ctr {
+        font-size: 10px;
+        color: #4a516a;
+        letter-spacing: 2px;
+        min-width: 60px;
+        text-align: center;
+      }
+      #dots {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: 300px;
+      }
+      .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #1e1e38;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .dot.on {
+        background: #f59e0b;
+      }
+      .hint {
+        font-size: 9px;
+        color: #4a516a;
+        letter-spacing: 1px;
+        margin-top: 6px;
+      }
+
+      /* ── SHARED COMPONENTS ── */
+      h1,
+      h2,
+      h3 {
+        font-family: "Syne", sans-serif;
+        color: #f59e0b;
+      }
+      .lbl {
+        font-size: 11px;
+        letter-spacing: 3px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .tag {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 3px;
+        font-size: 9px;
+        letter-spacing: 1.5px;
+        font-weight: 600;
+      }
+      .card {
+        background: #0d0d1e;
+        border-radius: 10px;
+        padding: 20px 20px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .topbar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      .plus {
+        color: #34d399;
+        font-size: 13px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .minus {
+        color: #f87171;
+        font-size: 13px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      /* ── ZONES ── */
+      .hdr {
+        padding: 48px 80px 20px;
+        position: relative;
+        z-index: 1;
+        flex-shrink: 0;
+      }
+      .body {
+        padding: 0 80px;
+        flex: 1;
+        position: relative;
+        z-index: 1;
+        min-height: 0;
+      }
+      .ftr {
+        padding: 12px 80px 44px;
+        position: relative;
+        z-index: 1;
+        flex-shrink: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <div id="outer">
+        <div id="stage">
+          <!-- ═══════════════════════════════ S01 · TITLE ═══════════════════════════════ -->
+          <div class="sl on" style="flex-direction: row">
+            <div class="gl"></div>
+            <div
+              style="
+                width: 6px;
+                background: linear-gradient(180deg, #f59e0b, #7c3aed);
+                flex-shrink: 0;
+              "
+            ></div>
+            <div
+              style="
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                padding: 0 80px;
+                position: relative;
+                z-index: 1;
+              "
+            >
+              <div class="lbl" style="color: #fcd34d; margin-bottom: 20px">
+                Engineering Stateful AI Conversations
+              </div>
+              <h1
+                style="
+                  font-size: 58px;
+                  font-weight: 800;
+                  line-height: 1.05;
+                  letter-spacing: -2px;
+                  margin-bottom: 20px;
+                "
+              >
+                Demystifying LLM<br /><span style="color: #fcd34d"
+                  >Context Windows</span
+                >
+              </h1>
+              <p
+                style="
+                  font-size: 15px;
+                  color: #64748b;
+                  line-height: 1.7;
+                  max-width: 500px;
+                "
+              >
+                A Frontend Engineer's Guide to translating stateless API calls
+                into memory-aware applications. Strictly based on verified AI
+                Engineering practices.
+              </p>
+              <div style="display: flex; gap: 24px; margin-top: 40px">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <div
+                    style="
+                      width: 7px;
+                      height: 7px;
+                      border-radius: 50%;
+                      background: #34d399;
+                    "
+                  ></div>
+                  <span
+                    style="font-size: 10px; color: #4a516a; letter-spacing: 1px"
+                    >PRACTICAL LEVELS</span
+                  >
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <div
+                    style="
+                      width: 7px;
+                      height: 7px;
+                      border-radius: 50%;
+                      background: #60a5fa;
+                    "
+                  ></div>
+                  <span
+                    style="font-size: 10px; color: #4a516a; letter-spacing: 1px"
+                    >CHIP HUYEN REFS</span
+                  >
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <div
+                    style="
+                      width: 7px;
+                      height: 7px;
+                      border-radius: 50%;
+                      background: #f59e0b;
+                    "
+                  ></div>
+                  <span
+                    style="font-size: 10px; color: #4a516a; letter-spacing: 1px"
+                    >FE ANALOGIES</span
+                  >
+                </div>
+              </div>
+            </div>
+            <div
+              style="
+                width: 360px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                flex-shrink: 0;
+              "
+            >
+              <div
+                style="
+                  position: absolute;
+                  width: 320px;
+                  height: 320px;
+                  border-radius: 50%;
+                  border: 1px solid #1e1e38;
+                "
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  width: 240px;
+                  height: 240px;
+                  border-radius: 50%;
+                  border: 1px solid #252540;
+                "
+              ></div>
+              <div
+                style="
+                  position: absolute;
+                  width: 160px;
+                  height: 160px;
+                  border-radius: 50%;
+                  border: 1px solid #2a2a50;
+                "
+              ></div>
+              <div style="position: relative; z-index: 2; text-align: center">
+                <div style="font-size: 52px; line-height: 1; color: #f59e0b">
+                  ◉
+                </div>
+                <div
+                  style="
+                    font-size: 9px;
+                    color: #f59e0b;
+                    letter-spacing: 3px;
+                    margin-top: 8px;
+                  "
+                >
+                  CONTEXT WINDOW
+                </div>
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  top: 110px;
+                  right: 22px;
+                  font-size: 10px;
+                  color: #4a516a;
+                  letter-spacing: 1px;
+                "
+              >
+                MODEL
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  bottom: 112px;
+                  left: 16px;
+                  font-size: 10px;
+                  color: #4a516a;
+                  letter-spacing: 1px;
+                "
+              >
+                INFERENCE
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  top: 50%;
+                  left: 10px;
+                  transform: translateY(-50%);
+                  font-size: 10px;
+                  color: #f59e0b;
+                  letter-spacing: 1px;
+                "
+              >
+                STATE PAYLOAD
+              </div>
+            </div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S02 · PROBLEM ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr">
+              <div class="lbl" style="color: #f87171; margin-bottom: 14px">
+                The Fundamental Truth
+              </div>
+              <h2
+                style="
+                  font-size: 44px;
+                  font-weight: 800;
+                  letter-spacing: -1px;
+                  line-height: 1.05;
+                "
+              >
+                Every LLM call is <span style="color: #ef4444">stateless.</span>
+              </h2>
+              <p
+                style="
+                  font-size: 14px;
+                  color: #64748b;
+                  margin-top: 10px;
+                  line-height: 1.7;
+                  max-width: 640px;
+                "
+              >
+                Foundation models do not update their weights during a chat.
+                They have zero built-in memory. To build a "stateful"
+                conversation, you must explicitly inject the state payload into
+                every API request.
+              </p>
+            </div>
+            <div
+              class="body"
+              style="display: flex; gap: 0; align-items: center"
+            >
+              <div
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  gap: 10px;
+                  width: 220px;
+                  flex-shrink: 0;
+                "
+              >
+                <div
+                  style="
+                    background: #0d0d1e;
+                    border: 1px solid #1e1e38;
+                    border-radius: 8px;
+                    padding: 14px 16px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #4a516a;
+                      letter-spacing: 2px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    TURN 1
+                  </div>
+                  <div
+                    style="font-size: 13px; color: #94a3b8; line-height: 1.5"
+                  >
+                    "Hi, my name is First"
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: #0d0d1e;
+                    border: 1px solid #34d39930;
+                    border-radius: 8px;
+                    padding: 14px 16px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #34d399;
+                      letter-spacing: 2px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    RESPONSE
+                  </div>
+                  <div
+                    style="font-size: 13px; color: #94a3b8; line-height: 1.5"
+                  >
+                    "Nice to meet you, First!"
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  flex: 1;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  gap: 6px;
+                  padding: 0 20px;
+                "
+              >
+                <div
+                  style="font-size: 9px; color: #ef4444; letter-spacing: 2px"
+                >
+                  STATE WIPED
+                </div>
+                <div
+                  style="
+                    width: 100%;
+                    height: 1px;
+                    background: linear-gradient(
+                      90deg,
+                      transparent,
+                      #ef4444,
+                      transparent
+                    );
+                  "
+                ></div>
+                <div style="font-size: 20px; color: #ef4444">⊗</div>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  gap: 10px;
+                  width: 220px;
+                  flex-shrink: 0;
+                "
+              >
+                <div
+                  style="
+                    background: #0d0d1e;
+                    border: 1px solid #1e1e38;
+                    border-radius: 8px;
+                    padding: 14px 16px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #4a516a;
+                      letter-spacing: 2px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    TURN 2
+                  </div>
+                  <div
+                    style="font-size: 13px; color: #94a3b8; line-height: 1.5"
+                  >
+                    "What's my name?"
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: #2a060608;
+                    border: 1px solid #ef444428;
+                    border-radius: 8px;
+                    padding: 14px 16px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #ef4444;
+                      letter-spacing: 2px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    STATELESS API CALL
+                  </div>
+                  <div
+                    style="font-size: 13px; color: #94a3b8; line-height: 1.5"
+                  >
+                    "I don't know your name."
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  flex: 1;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  gap: 6px;
+                  padding: 0 20px;
+                "
+              >
+                <div
+                  style="font-size: 9px; color: #34d399; letter-spacing: 2px"
+                >
+                  STATE INJECTED
+                </div>
+                <div
+                  style="
+                    width: 100%;
+                    height: 1px;
+                    background: linear-gradient(
+                      90deg,
+                      transparent,
+                      #34d399,
+                      transparent
+                    );
+                  "
+                ></div>
+                <div style="font-size: 20px; color: #34d399">→</div>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  gap: 10px;
+                  width: 220px;
+                  flex-shrink: 0;
+                "
+              >
+                <div
+                  style="
+                    background: #0d0d1e;
+                    border: 1px solid #1e1e38;
+                    border-radius: 8px;
+                    padding: 14px 16px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #4a516a;
+                      letter-spacing: 2px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    SAME TURN 2
+                  </div>
+                  <div
+                    style="font-size: 13px; color: #94a3b8; line-height: 1.5"
+                  >
+                    "What's my name?"
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: #0a2a1080;
+                    border: 1px solid #34d39928;
+                    border-radius: 8px;
+                    padding: 14px 16px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #34d399;
+                      letter-spacing: 2px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    STATEFUL CONTEXT
+                  </div>
+                  <div
+                    style="font-size: 13px; color: #94a3b8; line-height: 1.5"
+                  >
+                    "Your name is First."
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="ftr">
+              <div
+                style="
+                  background: #f59e0b0a;
+                  border: 1px solid #f59e0b22;
+                  border-radius: 8px;
+                  padding: 14px 20px;
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 12px;
+                "
+              >
+                <span style="color: #f59e0b; font-size: 16px">◈</span>
+                <span style="font-size: 13px; color: #d97706"
+                  ><strong>Memory = State Management.</strong> We explicitly
+                  manage state locally or in a DB to feed the context
+                  window.</span
+                >
+              </div>
+            </div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S03 · 3 LEVERS ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr">
+              <div class="lbl" style="color: #fcd34d; margin-bottom: 14px">
+                Framework
+              </div>
+              <h2
+                style="font-size: 44px; font-weight: 800; letter-spacing: -1px"
+              >
+                3 Levers of LLM Effectiveness
+              </h2>
+              <p style="font-size: 14px; color: #64748b; margin-top: 8px">
+                The official paradigm used by AI Researchers to optimize
+                performance.
+              </p>
+            </div>
+            <div
+              class="body"
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 20px;
+              "
+            >
+              <!-- Lever 1 -->
+              <div
+                style="
+                  background: #0d0d1e;
+                  border: 1px solid #a78bfa28;
+                  border-radius: 14px;
+                  padding: 28px 24px;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 14px;
+                  position: relative;
+                  overflow: hidden;
+                "
+              >
+                <div
+                  style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    background: linear-gradient(90deg, #a78bfa, transparent);
+                  "
+                ></div>
+                <div style="font-size: 32px; color: #a78bfa">◈</div>
+                <div>
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #a78bfa;
+                      letter-spacing: 2px;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    LEVER 1
+                  </div>
+                  <div
+                    style="
+                      font-size: 20px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #e2e8f0;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    Model
+                  </div>
+                  <div
+                    style="font-size: 13px; color: #64748b; line-height: 1.65"
+                  >
+                    Weights, training, RLHF. The capability ceiling. Fixed at
+                    inference time — only model selection or fine-tuning changes
+                    it.
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-top: auto;
+                  "
+                >
+                  <div
+                    style="
+                      width: 7px;
+                      height: 7px;
+                      border-radius: 50%;
+                      background: #ef4444;
+                    "
+                  ></div>
+                  <span
+                    style="font-size: 10px; color: #ef4444; letter-spacing: 1px"
+                    >PROVIDER-CONTROLLED</span
+                  >
+                </div>
+              </div>
+              <!-- Lever 2 HIGHLIGHTED -->
+              <div
+                style="
+                  background: #f59e0b08;
+                  border: 2px solid #f59e0b45;
+                  border-radius: 14px;
+                  padding: 28px 24px;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 14px;
+                  position: relative;
+                  overflow: hidden;
+                "
+              >
+                <div
+                  style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    background: linear-gradient(
+                      90deg,
+                      #f59e0b,
+                      #fcd34d,
+                      transparent
+                    );
+                  "
+                ></div>
+                <div style="font-size: 32px; color: #f59e0b">◉</div>
+                <div>
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #f59e0b;
+                      letter-spacing: 2px;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    LEVER 2 · PRIMARY
+                  </div>
+                  <div
+                    style="
+                      font-size: 20px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #fcd34d;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    Context Window
+                  </div>
+                  <div
+                    style="font-size: 13px; color: #d97706; line-height: 1.65"
+                  >
+                    The API payload limit. Your primary engineering lever to
+                    inject state. <em>Prompts are a subset of this</em> — not a
+                    separate variable.
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-top: auto;
+                  "
+                >
+                  <div
+                    style="
+                      width: 7px;
+                      height: 7px;
+                      border-radius: 50%;
+                      background: #34d399;
+                    "
+                  ></div>
+                  <span
+                    style="font-size: 10px; color: #34d399; letter-spacing: 1px"
+                    >ENGINEER-CONTROLLED</span
+                  >
+                </div>
+              </div>
+              <!-- Lever 3 -->
+              <div
+                style="
+                  background: #0d0d1e;
+                  border: 1px solid #22d3ee28;
+                  border-radius: 14px;
+                  padding: 28px 24px;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 14px;
+                  position: relative;
+                  overflow: hidden;
+                "
+              >
+                <div
+                  style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 3px;
+                    background: linear-gradient(90deg, #22d3ee, transparent);
+                  "
+                ></div>
+                <div style="font-size: 32px; color: #22d3ee">◎</div>
+                <div>
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #22d3ee;
+                      letter-spacing: 2px;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    LEVER 3
+                  </div>
+                  <div
+                    style="
+                      font-size: 20px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #e2e8f0;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    Inference
+                  </div>
+                  <div
+                    style="font-size: 13px; color: #64748b; line-height: 1.65"
+                  >
+                    Parameters evaluated at runtime. Temperature, Top-P, and
+                    <em>Thinking Token budget</em> (trading compute for
+                    reasoning).
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-top: auto;
+                  "
+                >
+                  <div
+                    style="
+                      width: 7px;
+                      height: 7px;
+                      border-radius: 50%;
+                      background: #34d399;
+                    "
+                  ></div>
+                  <span
+                    style="font-size: 10px; color: #34d399; letter-spacing: 1px"
+                    >ENGINEER-CONTROLLED</span
+                  >
+                </div>
+              </div>
+            </div>
+            <div class="ftr">
+              <div
+                style="
+                  font-size: 13px;
+                  color: #4a516a;
+                  border-left: 2px solid #f59e0b38;
+                  padding-left: 14px;
+                  line-height: 1.65;
+                "
+              >
+                ⚠ Common mistake: treating "Prompts" as a 4th lever. A prompt is
+                simply a named state region inside the Context Window.
+              </div>
+            </div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S04 · ANATOMY ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr">
+              <div class="lbl" style="color: #60a5fa; margin-bottom: 14px">
+                Payload Anatomy
+              </div>
+              <h2
+                style="font-size: 44px; font-weight: 800; letter-spacing: -1px"
+              >
+                Structuring the State Payload
+              </h2>
+              <p style="font-size: 14px; color: #64748b; margin-top: 8px">
+                The LLM API receives one flat string of tokens. We use explicit
+                structural tags to segment state.
+              </p>
+            </div>
+            <div
+              class="body"
+              style="
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                gap: 24px;
+              "
+            >
+              <div
+                style="
+                  display: flex;
+                  gap: 4px;
+                  height: 58px;
+                  border-radius: 8px;
+                  overflow: hidden;
+                  border: 1px solid #1e1e38;
+                "
+              >
+                <div
+                  style="
+                    width: 20%;
+                    background: #a78bfa18;
+                    border-right: 1px solid #a78bfa28;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  "
+                >
+                  <span
+                    style="
+                      font-size: 10px;
+                      color: #a78bfa;
+                      text-align: center;
+                      padding: 0 6px;
+                      line-height: 1.4;
+                    "
+                    >SYSTEM RULES<br />&lt;skills&gt;</span
+                  >
+                </div>
+                <div
+                  style="
+                    width: 20%;
+                    background: #34d39918;
+                    border-right: 1px solid #34d39928;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  "
+                >
+                  <span
+                    style="
+                      font-size: 10px;
+                      color: #34d399;
+                      text-align: center;
+                      padding: 0 6px;
+                      line-height: 1.4;
+                    "
+                    >RETRIEVED<br />STATE (RAG)</span
+                  >
+                </div>
+                <div
+                  style="
+                    width: 34%;
+                    background: #60a5fa12;
+                    border-right: 1px solid #60a5fa28;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  "
+                >
+                  <span
+                    style="font-size: 10px; color: #60a5fa; text-align: center"
+                    >CONVERSATION HISTORY</span
+                  >
+                </div>
+                <div
+                  style="
+                    width: 26%;
+                    background: #22d3ee12;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  "
+                >
+                  <span
+                    style="
+                      font-size: 10px;
+                      color: #22d3ee;
+                      text-align: center;
+                      padding: 0 6px;
+                      line-height: 1.4;
+                    "
+                    >USER INPUT</span
+                  >
+                </div>
+              </div>
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: repeat(4, 1fr);
+                  gap: 14px;
+                "
+              >
+                <div
+                  style="
+                    background: #0d0d1e;
+                    border: 1px solid #a78bfa20;
+                    border-radius: 8px;
+                    padding: 16px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #a78bfa;
+                      letter-spacing: 1px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    SYSTEM / RULES
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.6"
+                  >
+                    Instructions and format rules.
+                    <strong>Best practice:</strong> Claude recommends wrapping
+                    strict guidelines in
+                    <code style="color: #c4b5fd">&lt;rules&gt;</code> or
+                    <code style="color: #c4b5fd">&lt;skills&gt;</code> XML tags.
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: #0d0d1e;
+                    border: 1px solid #34d39920;
+                    border-radius: 8px;
+                    padding: 16px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #34d399;
+                      letter-spacing: 1px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    RAG STATE
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.6"
+                  >
+                    External state retrieved from a Vector DB (Company docs,
+                    APIs) to provide ground truth.
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: #0d0d1e;
+                    border: 1px solid #60a5fa20;
+                    border-radius: 8px;
+                    padding: 16px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #60a5fa;
+                      letter-spacing: 1px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    HISTORY STATE
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.6"
+                  >
+                    Prior conversation turns. This is the portion that context
+                    management algorithms optimize to save tokens.
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: #0d0d1e;
+                    border: 1px solid #22d3ee20;
+                    border-radius: 8px;
+                    padding: 16px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #22d3ee;
+                      letter-spacing: 1px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    USER INPUT
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.6"
+                  >
+                    Current turn. Always placed last — recency bias works
+                    heavily in your favor.
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="padding: 0 80px 44px"></div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S05 · TIMELINE/ROADMAP ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr" style="padding-bottom: 16px">
+              <div class="lbl" style="color: #fcd34d; margin-bottom: 14px">
+                Complexity Scale
+              </div>
+              <h2
+                style="font-size: 44px; font-weight: 800; letter-spacing: -1px"
+              >
+                Roadmap to Stateful AI
+              </h2>
+              <p style="font-size: 14px; color: #64748b; margin-top: 8px">
+                From naive implementations to production-grade state
+                architectures.
+              </p>
+            </div>
+            <div
+              class="body"
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              "
+            >
+              <div
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  gap: 6px;
+                  width: 100%;
+                  max-width: 700px;
+                "
+              >
+                <!-- L0 -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    background: #0d0d1e;
+                    border: 1px solid #1e1e38;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                  "
+                >
+                  <div
+                    style="
+                      width: 28px;
+                      height: 28px;
+                      border-radius: 6px;
+                      background: #ef444420;
+                      color: #ef4444;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-weight: 700;
+                      font-size: 12px;
+                      flex-shrink: 0;
+                    "
+                  >
+                    L0
+                  </div>
+                  <div style="flex: 1">
+                    <div
+                      style="font-size: 14px; color: #e2e8f0; font-weight: 600"
+                    >
+                      Full Context (Naive)
+                    </div>
+                    <div
+                      style="font-size: 11px; color: #64748b; margin-top: 2px"
+                    >
+                      Send the entire state every time. Works until it hits the
+                      token wall.
+                    </div>
+                  </div>
+                </div>
+                <!-- L1 -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    background: #0d0d1e;
+                    border: 1px solid #1e1e38;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                  "
+                >
+                  <div
+                    style="
+                      width: 28px;
+                      height: 28px;
+                      border-radius: 6px;
+                      background: #f9731620;
+                      color: #f97316;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-weight: 700;
+                      font-size: 12px;
+                      flex-shrink: 0;
+                    "
+                  >
+                    L1
+                  </div>
+                  <div style="flex: 1">
+                    <div
+                      style="font-size: 14px; color: #e2e8f0; font-weight: 600"
+                    >
+                      Sliding Window (FIFO)
+                    </div>
+                    <div
+                      style="font-size: 11px; color: #64748b; margin-top: 2px"
+                    >
+                      Keep only the last N messages in state. Permanent amnesia
+                      for older turns.
+                    </div>
+                  </div>
+                </div>
+                <!-- L2 -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    background: #0d0d1e;
+                    border: 1px solid #1e1e38;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                  "
+                >
+                  <div
+                    style="
+                      width: 28px;
+                      height: 28px;
+                      border-radius: 6px;
+                      background: #eab30820;
+                      color: #eab308;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-weight: 700;
+                      font-size: 12px;
+                      flex-shrink: 0;
+                    "
+                  >
+                    L2
+                  </div>
+                  <div style="flex: 1">
+                    <div
+                      style="font-size: 14px; color: #e2e8f0; font-weight: 600"
+                    >
+                      Summarization
+                    </div>
+                    <div
+                      style="font-size: 11px; color: #64748b; margin-top: 2px"
+                    >
+                      Compress old turns into a summary digest to save context
+                      payload size.
+                    </div>
+                  </div>
+                </div>
+                <!-- L3 -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    background: #22c55e08;
+                    border: 1px solid #22c55e30;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    position: relative;
+                    overflow: hidden;
+                  "
+                >
+                  <div
+                    style="
+                      position: absolute;
+                      left: 0;
+                      top: 0;
+                      bottom: 0;
+                      width: 3px;
+                      background: #22c55e;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      width: 28px;
+                      height: 28px;
+                      border-radius: 6px;
+                      background: #22c55e20;
+                      color: #22c55e;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-weight: 700;
+                      font-size: 12px;
+                      flex-shrink: 0;
+                    "
+                  >
+                    L3
+                  </div>
+                  <div style="flex: 1">
+                    <div
+                      style="font-size: 14px; color: #34d399; font-weight: 600"
+                    >
+                      RAG (Retrieval-Augmented Generation)
+                    </div>
+                    <div
+                      style="font-size: 11px; color: #64748b; margin-top: 2px"
+                    >
+                      Externalize state to Vector DB. Retrieve only what is
+                      semantically relevant.
+                    </div>
+                  </div>
+                  <span
+                    style="
+                      font-size: 9px;
+                      color: #22c55e;
+                      letter-spacing: 1px;
+                      border: 1px solid #22c55e40;
+                      padding: 2px 6px;
+                      border-radius: 4px;
+                    "
+                    >INDUSTRY STANDARD</span
+                  >
+                </div>
+                <!-- L4 -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    background: #06b6d408;
+                    border: 1px solid #06b6d430;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    position: relative;
+                    overflow: hidden;
+                  "
+                >
+                  <div
+                    style="
+                      position: absolute;
+                      left: 0;
+                      top: 0;
+                      bottom: 0;
+                      width: 3px;
+                      background: #06b6d4;
+                    "
+                  ></div>
+                  <div
+                    style="
+                      width: 28px;
+                      height: 28px;
+                      border-radius: 6px;
+                      background: #06b6d420;
+                      color: #06b6d4;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-weight: 700;
+                      font-size: 12px;
+                      flex-shrink: 0;
+                    "
+                  >
+                    L4
+                  </div>
+                  <div style="flex: 1">
+                    <div
+                      style="font-size: 14px; color: #22d3ee; font-weight: 600"
+                    >
+                      Prompt Caching (Massive Context)
+                    </div>
+                    <div
+                      style="font-size: 11px; color: #64748b; margin-top: 2px"
+                    >
+                      Send huge state payload but cache the computation state at
+                      the provider edge.
+                    </div>
+                  </div>
+                </div>
+
+                <!-- L5 Out of scope -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    background: #1e1e3810;
+                    border: 1px dashed #1e1e38;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    opacity: 0.6;
+                  "
+                >
+                  <div
+                    style="
+                      width: 28px;
+                      height: 28px;
+                      border-radius: 6px;
+                      background: #1e1e38;
+                      color: #94a3b8;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-weight: 700;
+                      font-size: 12px;
+                      flex-shrink: 0;
+                    "
+                  >
+                    L5*
+                  </div>
+                  <div style="flex: 1">
+                    <div
+                      style="font-size: 14px; color: #94a3b8; font-weight: 600"
+                    >
+                      GraphRAG
+                    </div>
+                    <div
+                      style="font-size: 11px; color: #64748b; margin-top: 2px"
+                    >
+                      Entity extraction mapped to relational Knowledge Graphs.
+                    </div>
+                  </div>
+                </div>
+
+                <!-- L6 Out of scope -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    background: #1e1e3810;
+                    border: 1px dashed #1e1e38;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    opacity: 0.6;
+                  "
+                >
+                  <div
+                    style="
+                      width: 28px;
+                      height: 28px;
+                      border-radius: 6px;
+                      background: #1e1e38;
+                      color: #94a3b8;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-weight: 700;
+                      font-size: 12px;
+                      flex-shrink: 0;
+                    "
+                  >
+                    L6*
+                  </div>
+                  <div style="flex: 1">
+                    <div
+                      style="font-size: 14px; color: #94a3b8; font-weight: 600"
+                    >
+                      Agentic / Managed Memory
+                    </div>
+                    <div
+                      style="font-size: 11px; color: #64748b; margin-top: 2px"
+                    >
+                      LLM autonomously manages its own state via integrated
+                      tools.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="ftr" style="padding-top: 0px">
+              <div
+                style="
+                  text-align: center;
+                  font-size: 10px;
+                  color: #4a516a;
+                  max-width: 700px;
+                  margin: 0 auto;
+                  line-height: 1.5;
+                "
+              >
+                We focus on implementing Levels 0 through 4.<br />
+                <span style="color: #ef4444"
+                  >* Levels 5 & 6 represent autonomous workflows currently
+                  outside our explicit state management scope (and my current
+                  AOC).</span
+                >
+              </div>
+            </div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S06 · L0-L2 ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr">
+              <div class="lbl" style="color: #fcd34d; margin-bottom: 12px">
+                Levels 0–2
+              </div>
+              <h2
+                style="
+                  font-size: 40px;
+                  font-weight: 800;
+                  letter-spacing: -0.8px;
+                "
+              >
+                Foundation State Patterns
+              </h2>
+              <p style="font-size: 13px; color: #64748b; margin-top: 7px">
+                No specialized infrastructure required. Handled directly via
+                basic code logic.
+              </p>
+            </div>
+            <div
+              class="body"
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 16px;
+              "
+            >
+              <div class="card" style="border: 1px solid #ef444420">
+                <div
+                  class="topbar"
+                  style="
+                    background: linear-gradient(90deg, #ef4444, transparent);
+                  "
+                ></div>
+                <div>
+                  <div
+                    style="
+                      display: flex;
+                      gap: 8px;
+                      align-items: center;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    <span
+                      class="tag"
+                      style="
+                        background: #ef444418;
+                        border: 1px solid #ef444436;
+                        color: #ef4444;
+                      "
+                      >Level 0</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      font-size: 15px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #e2e8f0;
+                      margin-bottom: 7px;
+                    "
+                  >
+                    Naive Full Context
+                  </div>
+                  <div
+                    style="
+                      font-size: 11px;
+                      color: #d97706;
+                      background: #f59e0b08;
+                      border: 1px solid #f59e0b18;
+                      border-radius: 5px;
+                      padding: 7px 10px;
+                      line-height: 1.5;
+                    "
+                  >
+                    ⚛ Like passing entire Redux store as props to every
+                    component
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                    flex: 1;
+                  "
+                >
+                  <div>
+                    <div
+                      style="
+                        font-size: 8px;
+                        color: #34d399;
+                        letter-spacing: 1.5px;
+                        margin-bottom: 6px;
+                      "
+                    >
+                      ✓ PROS
+                    </div>
+                    <div class="row" style="margin-bottom: 4px">
+                      <span class="plus">+</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >Zero complexity</span
+                      >
+                    </div>
+                    <div class="row">
+                      <span class="plus">+</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >Perfect recall</span
+                      >
+                    </div>
+                  </div>
+                  <div>
+                    <div
+                      style="
+                        font-size: 8px;
+                        color: #ef4444;
+                        letter-spacing: 1.5px;
+                        margin-bottom: 6px;
+                      "
+                    >
+                      ✗ CONS
+                    </div>
+                    <div class="row" style="margin-bottom: 4px">
+                      <span class="minus">−</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >Hits hard token limits</span
+                      >
+                    </div>
+                    <div class="row">
+                      <span class="minus">−</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >Costly scaling</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card" style="border: 1px solid #f9731620">
+                <div
+                  class="topbar"
+                  style="
+                    background: linear-gradient(90deg, #f97316, transparent);
+                  "
+                ></div>
+                <div>
+                  <div
+                    style="
+                      display: flex;
+                      gap: 8px;
+                      align-items: center;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    <span
+                      class="tag"
+                      style="
+                        background: #f9731618;
+                        border: 1px solid #f9731636;
+                        color: #f97316;
+                      "
+                      >Level 1</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      font-size: 15px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #e2e8f0;
+                      margin-bottom: 7px;
+                    "
+                  >
+                    Sliding Window
+                  </div>
+                  <div
+                    style="
+                      font-size: 11px;
+                      color: #d97706;
+                      background: #f59e0b08;
+                      border: 1px solid #f59e0b18;
+                      border-radius: 5px;
+                      padding: 7px 10px;
+                      line-height: 1.5;
+                    "
+                  >
+                    ⚛ Like react-window — items scroll off viewport and are gone
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                    flex: 1;
+                  "
+                >
+                  <div>
+                    <div
+                      style="
+                        font-size: 8px;
+                        color: #34d399;
+                        letter-spacing: 1.5px;
+                        margin-bottom: 6px;
+                      "
+                    >
+                      ✓ PROS
+                    </div>
+                    <div class="row" style="margin-bottom: 4px">
+                      <span class="plus">+</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >Bounded API cost</span
+                      >
+                    </div>
+                    <div class="row">
+                      <span class="plus">+</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >No DB needed</span
+                      >
+                    </div>
+                  </div>
+                  <div>
+                    <div
+                      style="
+                        font-size: 8px;
+                        color: #ef4444;
+                        letter-spacing: 1.5px;
+                        margin-bottom: 6px;
+                      "
+                    >
+                      ✗ CONS
+                    </div>
+                    <div class="row" style="margin-bottom: 4px">
+                      <span class="minus">−</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >Permanent amnesia</span
+                      >
+                    </div>
+                    <div class="row">
+                      <span class="minus">−</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >Naive FIFO eviction</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card" style="border: 1px solid #eab30820">
+                <div
+                  class="topbar"
+                  style="
+                    background: linear-gradient(90deg, #eab308, transparent);
+                  "
+                ></div>
+                <div>
+                  <div
+                    style="
+                      display: flex;
+                      gap: 8px;
+                      align-items: center;
+                      margin-bottom: 8px;
+                    "
+                  >
+                    <span
+                      class="tag"
+                      style="
+                        background: #eab30818;
+                        border: 1px solid #eab30836;
+                        color: #eab308;
+                      "
+                      >Level 2</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      font-size: 15px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #e2e8f0;
+                      margin-bottom: 7px;
+                    "
+                  >
+                    Summarization
+                  </div>
+                  <div
+                    style="
+                      font-size: 11px;
+                      color: #d97706;
+                      background: #f59e0b08;
+                      border: 1px solid #f59e0b18;
+                      border-radius: 5px;
+                      padding: 7px 10px;
+                      line-height: 1.5;
+                    "
+                  >
+                    ⚛ Like useMemo() — expensive state collapsed into a cached
+                    digest
+                  </div>
+                </div>
+                <div
+                  style="
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                    flex: 1;
+                  "
+                >
+                  <div>
+                    <div
+                      style="
+                        font-size: 8px;
+                        color: #34d399;
+                        letter-spacing: 1.5px;
+                        margin-bottom: 6px;
+                      "
+                    >
+                      ✓ PROS
+                    </div>
+                    <div class="row" style="margin-bottom: 4px">
+                      <span class="plus">+</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >Preserves semantic gist</span
+                      >
+                    </div>
+                  </div>
+                  <div>
+                    <div
+                      style="
+                        font-size: 8px;
+                        color: #ef4444;
+                        letter-spacing: 1.5px;
+                        margin-bottom: 6px;
+                      "
+                    >
+                      ✗ CONS
+                    </div>
+                    <div class="row" style="margin-bottom: 4px">
+                      <span class="minus">−</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >Lossy compression</span
+                      >
+                    </div>
+                    <div class="row">
+                      <span class="minus">−</span
+                      ><span
+                        style="
+                          font-size: 11px;
+                          color: #64748b;
+                          line-height: 1.5;
+                        "
+                        >Extra latency to summarize</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="padding: 12px 80px 44px"></div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S07 · L3-L4 ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr">
+              <div class="lbl" style="color: #fcd34d; margin-bottom: 12px">
+                Levels 3 & 4
+              </div>
+              <h2
+                style="
+                  font-size: 40px;
+                  font-weight: 800;
+                  letter-spacing: -0.8px;
+                "
+              >
+                Production State Patterns
+              </h2>
+              <p style="font-size: 13px; color: #64748b; margin-top: 7px">
+                Where most modern applications operate. Often used together to
+                manage heavy state payloads.
+              </p>
+            </div>
+            <div
+              class="body"
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px"
+            >
+              <!-- RAG -->
+              <div class="card" style="border: 1px solid #22c55e22">
+                <div
+                  class="topbar"
+                  style="
+                    background: linear-gradient(90deg, #22c55e, transparent);
+                  "
+                ></div>
+                <div
+                  style="
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    margin-bottom: 6px;
+                  "
+                >
+                  <span
+                    class="tag"
+                    style="
+                      background: #22c55e18;
+                      border: 1px solid #22c55e36;
+                      color: #22c55e;
+                    "
+                    >Level 3</span
+                  >
+                  <span
+                    class="tag"
+                    style="
+                      background: #60a5fa12;
+                      border: 1px solid #60a5fa28;
+                      color: #60a5fa;
+                      font-size: 8px;
+                    "
+                    >RAG Architecture</span
+                  >
+                </div>
+                <div
+                  style="
+                    font-size: 17px;
+                    font-weight: 700;
+                    font-family: &quot;Syne&quot;, sans-serif;
+                    color: #e2e8f0;
+                    margin-bottom: 7px;
+                  "
+                >
+                  Retrieval-Augmented State
+                </div>
+                <div
+                  style="
+                    font-size: 11px;
+                    color: #d97706;
+                    background: #f59e0b08;
+                    border: 1px solid #f59e0b18;
+                    border-radius: 5px;
+                    padding: 8px 12px;
+                    margin-bottom: 12px;
+                    line-height: 1.5;
+                  "
+                >
+                  ⚛ Like React Query — don't preload everything. Fetch relevant
+                  data dynamically on demand.
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    flex: 1;
+                  "
+                >
+                  <div class="row">
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        background: #22c55e18;
+                        border: 1px solid #22c55e36;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        flex-shrink: 0;
+                      "
+                    >
+                      <span style="font-size: 9px; color: #22c55e">1</span>
+                    </div>
+                    <span
+                      style="
+                        font-size: 12px;
+                        color: #94a3b8;
+                        line-height: 1.5;
+                        padding-top: 2px;
+                      "
+                      >Data chunks are embedded and stored in an external Vector
+                      DB.</span
+                    >
+                  </div>
+                  <div class="row">
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        background: #22c55e18;
+                        border: 1px solid #22c55e36;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        flex-shrink: 0;
+                      "
+                    >
+                      <span style="font-size: 9px; color: #22c55e">2</span>
+                    </div>
+                    <span
+                      style="
+                        font-size: 12px;
+                        color: #94a3b8;
+                        line-height: 1.5;
+                        padding-top: 2px;
+                      "
+                      >When user queries, retrieve Top-K similar state
+                      chunks.</span
+                    >
+                  </div>
+                  <div class="row">
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        background: #22c55e18;
+                        border: 1px solid #22c55e36;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        flex-shrink: 0;
+                      "
+                    >
+                      <span style="font-size: 9px; color: #22c55e">3</span>
+                    </div>
+                    <span
+                      style="
+                        font-size: 12px;
+                        color: #94a3b8;
+                        line-height: 1.5;
+                        padding-top: 2px;
+                      "
+                      >Inject into Context Window. Keeps TTFT low. Essential for
+                      massive enterprise datasets.</span
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <!-- Caching -->
+              <div class="card" style="border: 1px solid #06b6d422">
+                <div
+                  class="topbar"
+                  style="
+                    background: linear-gradient(90deg, #06b6d4, transparent);
+                  "
+                ></div>
+                <div
+                  style="
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    margin-bottom: 6px;
+                  "
+                >
+                  <span
+                    class="tag"
+                    style="
+                      background: #06b6d418;
+                      border: 1px solid #06b6d436;
+                      color: #06b6d4;
+                    "
+                    >Level 4</span
+                  >
+                  <span
+                    class="tag"
+                    style="
+                      background: #60a5fa12;
+                      border: 1px solid #60a5fa28;
+                      color: #60a5fa;
+                      font-size: 8px;
+                    "
+                    >Massive Context</span
+                  >
+                </div>
+                <div
+                  style="
+                    font-size: 17px;
+                    font-weight: 700;
+                    font-family: &quot;Syne&quot;, sans-serif;
+                    color: #e2e8f0;
+                    margin-bottom: 7px;
+                  "
+                >
+                  Prompt Caching
+                </div>
+                <div
+                  style="
+                    font-size: 11px;
+                    color: #d97706;
+                    background: #f59e0b08;
+                    border: 1px solid #f59e0b18;
+                    border-radius: 5px;
+                    padding: 8px 12px;
+                    margin-bottom: 12px;
+                    line-height: 1.5;
+                  "
+                >
+                  ⚛ Like Edge CDN Cache — compute once, serve fast from API
+                  memory.
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    flex: 1;
+                  "
+                >
+                  <div class="row">
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        background: #06b6d418;
+                        border: 1px solid #06b6d436;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        flex-shrink: 0;
+                      "
+                    >
+                      <span style="font-size: 9px; color: #06b6d4">1</span>
+                    </div>
+                    <span
+                      style="
+                        font-size: 12px;
+                        color: #94a3b8;
+                        line-height: 1.5;
+                        padding-top: 2px;
+                      "
+                      >Send the entire static state payload (e.g., full
+                      codebase) upfront.</span
+                    >
+                  </div>
+                  <div class="row">
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        background: #06b6d418;
+                        border: 1px solid #06b6d436;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        flex-shrink: 0;
+                      "
+                    >
+                      <span style="font-size: 9px; color: #06b6d4">2</span>
+                    </div>
+                    <span
+                      style="
+                        font-size: 12px;
+                        color: #94a3b8;
+                        line-height: 1.5;
+                        padding-top: 2px;
+                      "
+                      >The Provider caches the
+                      <em>Attention KV State</em> (computation state, not text
+                      output).</span
+                    >
+                  </div>
+                  <div class="row">
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        background: #06b6d418;
+                        border: 1px solid #06b6d436;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        flex-shrink: 0;
+                      "
+                    >
+                      <span style="font-size: 9px; color: #06b6d4">3</span>
+                    </div>
+                    <span
+                      style="
+                        font-size: 12px;
+                        color: #94a3b8;
+                        line-height: 1.5;
+                        padding-top: 2px;
+                      "
+                      >Subsequent API calls using the identical prefix get up to
+                      90% cost reduction and massive speedups.</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="padding: 12px 80px 44px"></div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S08 · OUT OF SCOPE ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr" style="padding-bottom: 16px">
+              <div class="lbl" style="color: #64748b; margin-bottom: 12px">
+                Setting Boundaries
+              </div>
+              <h2
+                style="font-size: 42px; font-weight: 800; letter-spacing: -1px"
+              >
+                Beyond Explicit State
+                <span style="font-size: 24px; color: #64748b"
+                  >(Out of Scope)</span
+                >
+              </h2>
+            </div>
+            <div
+              class="body"
+              style="
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                justify-content: center;
+              "
+            >
+              <div
+                style="
+                  background: #1e1e3820;
+                  border: 1px solid #1e1e3850;
+                  border-left: 4px solid #4a516a;
+                  border-radius: 8px;
+                  padding: 16px 20px;
+                "
+              >
+                <div
+                  style="
+                    font-size: 14px;
+                    color: #e2e8f0;
+                    font-weight: 600;
+                    margin-bottom: 6px;
+                  "
+                >
+                  Transparency Note
+                </div>
+                <div style="font-size: 13px; color: #94a3b8; line-height: 1.6">
+                  The AI industry is moving towards autonomous workflows. You
+                  may hear buzzwords about technologies beyond standard
+                  explicitly-managed context. These require specialized Data
+                  Engineering, Graph Databases, or Agentic systems.
+                  <strong
+                    >They are outside our standard Frontend explicitly-stateful
+                    scope (Level 5 & 6).</strong
+                  >
+                </div>
+              </div>
+
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 16px;
+                  margin-top: 8px;
+                "
+              >
+                <div
+                  style="
+                    background: #0d0d1e;
+                    border: 1px dashed #1e1e38;
+                    border-radius: 8px;
+                    padding: 16px;
+                    opacity: 0.7;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 14px;
+                      font-weight: 600;
+                      color: #94a3b8;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    L5: GraphRAG
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.5"
+                  >
+                    Instead of just semantic similarity, extracts entities into
+                    a Knowledge Graph (Neo4j) to allow multi-hop reasoning.
+                    Highly complex data pipelines.
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: #0d0d1e;
+                    border: 1px dashed #1e1e38;
+                    border-radius: 8px;
+                    padding: 16px;
+                    opacity: 0.7;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 14px;
+                      font-weight: 600;
+                      color: #94a3b8;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    L6: Agentic / Managed Memory
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.5"
+                  >
+                    Systems like MemGPT, Mem0, or Zep where the LLM is given
+                    tools to autonomously read/write its own memory pages to a
+                    database (delegated state).
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S09 · LOST IN THE MIDDLE ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr" style="padding-bottom: 16px">
+              <div class="lbl" style="color: #ef4444; margin-bottom: 12px">
+                Critical Finding · Liu et al., Stanford 2023
+              </div>
+              <h2
+                style="font-size: 42px; font-weight: 800; letter-spacing: -1px"
+              >
+                State Positioning Matters
+              </h2>
+              <p style="font-size: 13px; color: #64748b; margin-top: 8px">
+                LLMs do not attend uniformly across their context window.
+                Position determines recall probability.
+              </p>
+            </div>
+            <div
+              class="body"
+              style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px"
+            >
+              <div
+                style="
+                  background: #0d0d1e;
+                  border: 1px solid #1e1e38;
+                  border-radius: 10px;
+                  padding: 20px 24px;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 14px;
+                "
+              >
+                <div
+                  style="font-size: 9px; color: #4a516a; letter-spacing: 2px"
+                >
+                  RECALL ACCURACY BY PAYLOAD POSITION
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    gap: 6px;
+                    align-items: flex-end;
+                    flex: 1;
+                  "
+                >
+                  <div
+                    style="
+                      flex: 1;
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                      justify-content: flex-end;
+                      height: 180px;
+                    "
+                  >
+                    <span
+                      style="font-size: 12px; font-weight: 700; color: #34d399"
+                      >92%</span
+                    >
+                    <div
+                      style="
+                        width: 100%;
+                        flex: 0.92;
+                        background: #34d39928;
+                        border: 1px solid #34d39948;
+                        border-radius: 3px 3px 0 0;
+                      "
+                    ></div>
+                    <span
+                      style="font-size: 9px; color: #4a516a; text-align: center"
+                      >Start</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      flex: 1;
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                      justify-content: flex-end;
+                      height: 180px;
+                    "
+                  >
+                    <span
+                      style="font-size: 12px; font-weight: 700; color: #86efac"
+                      >78%</span
+                    >
+                    <div
+                      style="
+                        width: 100%;
+                        flex: 0.78;
+                        background: #86efac20;
+                        border: 1px solid #86efac38;
+                        border-radius: 3px 3px 0 0;
+                      "
+                    ></div>
+                    <span
+                      style="font-size: 9px; color: #4a516a; text-align: center"
+                      >Early</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      flex: 1;
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                      justify-content: flex-end;
+                      height: 180px;
+                    "
+                  >
+                    <span
+                      style="font-size: 12px; font-weight: 700; color: #eab308"
+                      >51%</span
+                    >
+                    <div
+                      style="
+                        width: 100%;
+                        flex: 0.51;
+                        background: #eab30820;
+                        border: 1px solid #eab30838;
+                        border-radius: 3px 3px 0 0;
+                      "
+                    ></div>
+                    <span
+                      style="font-size: 9px; color: #4a516a; text-align: center"
+                      >Mid-Early</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      flex: 1;
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                      justify-content: flex-end;
+                      height: 180px;
+                    "
+                  >
+                    <span
+                      style="font-size: 12px; font-weight: 700; color: #ef4444"
+                      >32%</span
+                    >
+                    <div
+                      style="
+                        width: 100%;
+                        flex: 0.32;
+                        background: #ef444428;
+                        border: 1px solid #ef444448;
+                        border-radius: 3px 3px 0 0;
+                      "
+                    ></div>
+                    <span
+                      style="font-size: 9px; color: #ef4444; text-align: center"
+                      >Middle</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      flex: 1;
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                      justify-content: flex-end;
+                      height: 180px;
+                    "
+                  >
+                    <span
+                      style="font-size: 12px; font-weight: 700; color: #f97316"
+                      >38%</span
+                    >
+                    <div
+                      style="
+                        width: 100%;
+                        flex: 0.38;
+                        background: #f9731628;
+                        border: 1px solid #f9731648;
+                        border-radius: 3px 3px 0 0;
+                      "
+                    ></div>
+                    <span
+                      style="font-size: 9px; color: #4a516a; text-align: center"
+                      >Mid-Late</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      flex: 1;
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                      justify-content: flex-end;
+                      height: 180px;
+                    "
+                  >
+                    <span
+                      style="font-size: 12px; font-weight: 700; color: #eab308"
+                      >56%</span
+                    >
+                    <div
+                      style="
+                        width: 100%;
+                        flex: 0.56;
+                        background: #eab30820;
+                        border: 1px solid #eab30838;
+                        border-radius: 3px 3px 0 0;
+                      "
+                    ></div>
+                    <span
+                      style="font-size: 9px; color: #4a516a; text-align: center"
+                      >Late</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      flex: 1;
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                      justify-content: flex-end;
+                      height: 180px;
+                    "
+                  >
+                    <span
+                      style="font-size: 12px; font-weight: 700; color: #34d399"
+                      >89%</span
+                    >
+                    <div
+                      style="
+                        width: 100%;
+                        flex: 0.89;
+                        background: #34d39928;
+                        border: 1px solid #34d39948;
+                        border-radius: 3px 3px 0 0;
+                      "
+                    ></div>
+                    <span
+                      style="font-size: 9px; color: #4a516a; text-align: center"
+                      >End</span
+                    >
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: #ef444410;
+                    border: 1px solid #ef444420;
+                    border-radius: 7px;
+                    padding: 10px 14px;
+                  "
+                >
+                  <span
+                    style="font-size: 12px; color: #fca5a5; line-height: 1.6"
+                    ><strong style="color: #ef4444"
+                      >"Lost in the Middle":</strong
+                    >
+                    Recall drops to ~32% at center. Model has recency bias (end)
+                    + primacy bias (start). Middle state is statistically likely
+                    to be ignored.</span
+                  >
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 12px">
+                <div
+                  style="
+                    background: #ef444406;
+                    border: 1px solid #ef444418;
+                    border-radius: 10px;
+                    padding: 16px 18px;
+                    flex: 1;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #ef4444;
+                      letter-spacing: 1.5px;
+                      margin-bottom: 10px;
+                    "
+                  >
+                    ✗ WRONG APPROACH
+                  </div>
+                  <div class="row" style="margin-bottom: 8px">
+                    <span class="minus">−</span
+                    ><span
+                      style="font-size: 12px; color: #64748b; line-height: 1.5"
+                      >System → History → [RAG state in middle] → User</span
+                    >
+                  </div>
+                  <div class="row" style="margin-bottom: 8px">
+                    <span class="minus">−</span
+                    ><span
+                      style="font-size: 12px; color: #64748b; line-height: 1.5"
+                      >Critical rules buried after long history</span
+                    >
+                  </div>
+                  <div class="row">
+                    <span class="minus">−</span
+                    ><span
+                      style="font-size: 12px; color: #64748b; line-height: 1.5"
+                      >Retrieval order = whatever DB returns first</span
+                    >
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: #34d39906;
+                    border: 1px solid #34d39918;
+                    border-radius: 10px;
+                    padding: 16px 18px;
+                    flex: 1;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9px;
+                      color: #34d399;
+                      letter-spacing: 1.5px;
+                      margin-bottom: 10px;
+                    "
+                  >
+                    ✓ CORRECT STATE ORDERING
+                  </div>
+                  <div class="row" style="margin-bottom: 8px">
+                    <span class="plus">+</span
+                    ><span
+                      style="font-size: 12px; color: #64748b; line-height: 1.5"
+                      >Critical &lt;rules&gt; → START of context payload</span
+                    >
+                  </div>
+                  <div class="row" style="margin-bottom: 8px">
+                    <span class="plus">+</span
+                    ><span
+                      style="font-size: 12px; color: #64748b; line-height: 1.5"
+                      >Most important RAG state → first or last</span
+                    >
+                  </div>
+                  <div class="row" style="margin-bottom: 8px">
+                    <span class="plus">+</span
+                    ><span
+                      style="font-size: 12px; color: #64748b; line-height: 1.5"
+                      >Recent turns → END of context</span
+                    >
+                  </div>
+                  <div class="row">
+                    <span class="plus">+</span
+                    ><span
+                      style="font-size: 12px; color: #64748b; line-height: 1.5"
+                      >Low-confidence/older state → middle</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="ftr">
+              <div
+                style="
+                  background: #f59e0b08;
+                  border: 1px solid #f59e0b1c;
+                  border-radius: 8px;
+                  padding: 11px 18px;
+                  display: inline-flex;
+                  gap: 10px;
+                  align-items: center;
+                "
+              >
+                <span style="color: #f59e0b; font-size: 14px">◈</span>
+                <span style="font-size: 13px; color: #d97706"
+                  >Context payload order is a performance variable. Treat it
+                  like z-index in CSS — intentional and systematic.</span
+                >
+              </div>
+            </div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S10 · FE ANALOGIES ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr">
+              <div class="lbl" style="color: #fcd34d; margin-bottom: 12px">
+                Mental Model
+              </div>
+              <h2
+                style="font-size: 42px; font-weight: 800; letter-spacing: -1px"
+              >
+                State Concepts → React Analogies
+              </h2>
+              <p style="font-size: 13px; color: #64748b; margin-top: 8px">
+                Anchor new AI engineering knowledge to state management patterns
+                you already know.
+              </p>
+            </div>
+            <div
+              class="body"
+              style="
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                gap: 7px;
+              "
+            >
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 220px 300px 1fr;
+                  border-radius: 6px;
+                  overflow: hidden;
+                  border: 1px solid #1e1e38;
+                "
+              >
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #0d0d1e;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #a78bfa;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    LLM API
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #e2e8f0"
+                  >
+                    Context Window payload
+                  </div>
+                </div>
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #f59e0b05;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #f59e0b;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    REACT / FE
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #fcd34d"
+                  >
+                    Component Props
+                  </div>
+                </div>
+                <div style="padding: 9px 14px; background: #07070f">
+                  <div
+                    style="font-size: 11px; color: #4a516a; line-height: 1.5"
+                  >
+                    Everything the stateless LLM knows is explicitly passed in.
+                    No implicit state.
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 220px 300px 1fr;
+                  border-radius: 6px;
+                  overflow: hidden;
+                  border: 1px solid #1e1e38;
+                "
+              >
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #0d0d1e;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #a78bfa;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    LLM API
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #e2e8f0"
+                  >
+                    Token Limit
+                  </div>
+                </div>
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #f59e0b05;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #f59e0b;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    REACT / FE
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #fcd34d"
+                  >
+                    Bundle size budget
+                  </div>
+                </div>
+                <div style="padding: 9px 14px; background: #07070f">
+                  <div
+                    style="font-size: 11px; color: #4a516a; line-height: 1.5"
+                  >
+                    Hard payload constraint. You optimize for it — you can't
+                    just pass the whole DB.
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 220px 300px 1fr;
+                  border-radius: 6px;
+                  overflow: hidden;
+                  border: 1px solid #1e1e38;
+                "
+              >
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #0d0d1e;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #a78bfa;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    LLM API
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #e2e8f0"
+                  >
+                    &lt;rules&gt; XML Tags
+                  </div>
+                </div>
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #f59e0b05;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #f59e0b;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    REACT / FE
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #fcd34d"
+                  >
+                    PropTypes / TypeScript Interface
+                  </div>
+                </div>
+                <div style="padding: 9px 14px; background: #07070f">
+                  <div
+                    style="font-size: 11px; color: #4a516a; line-height: 1.5"
+                  >
+                    Explicit structural boundaries declaring strict expected
+                    formatting behavior.
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 220px 300px 1fr;
+                  border-radius: 6px;
+                  overflow: hidden;
+                  border: 1px solid #1e1e38;
+                "
+              >
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #0d0d1e;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #a78bfa;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    LLM API
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #e2e8f0"
+                  >
+                    RAG Retrieval
+                  </div>
+                </div>
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #f59e0b05;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #f59e0b;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    REACT / FE
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #fcd34d"
+                  >
+                    React Query / Lazy loading
+                  </div>
+                </div>
+                <div style="padding: 9px 14px; background: #07070f">
+                  <div
+                    style="font-size: 11px; color: #4a516a; line-height: 1.5"
+                  >
+                    Don't push global state blindly. Fetch what's relevant from
+                    Vector DB when needed.
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 220px 300px 1fr;
+                  border-radius: 6px;
+                  overflow: hidden;
+                  border: 1px solid #1e1e38;
+                "
+              >
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #0d0d1e;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #a78bfa;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    LLM API
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #e2e8f0"
+                  >
+                    Prompt Caching
+                  </div>
+                </div>
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #f59e0b05;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #f59e0b;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    REACT / FE
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #fcd34d"
+                  >
+                    Edge CDN Cache
+                  </div>
+                </div>
+                <div style="padding: 9px 14px; background: #07070f">
+                  <div
+                    style="font-size: 11px; color: #4a516a; line-height: 1.5"
+                  >
+                    Cache the Attention KV state at the provider edge to bypass
+                    execution latency.
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 220px 300px 1fr;
+                  border-radius: 6px;
+                  overflow: hidden;
+                  border: 1px solid #ef444420;
+                "
+              >
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #ef444408;
+                    border-right: 1px solid #ef444420;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #ef4444;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    LLM API ⚠
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #e2e8f0"
+                  >
+                    Prompt Injection
+                  </div>
+                </div>
+                <div
+                  style="
+                    padding: 9px 14px;
+                    background: #f59e0b05;
+                    border-right: 1px solid #1e1e38;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 8px;
+                      color: #f59e0b;
+                      margin-bottom: 3px;
+                      letter-spacing: 1px;
+                    "
+                  >
+                    REACT / FE
+                  </div>
+                  <div
+                    style="font-size: 13px; font-weight: 600; color: #fcd34d"
+                  >
+                    XSS attack
+                  </div>
+                </div>
+                <div style="padding: 9px 14px; background: #07070f">
+                  <div
+                    style="font-size: 11px; color: #4a516a; line-height: 1.5"
+                  >
+                    Untrusted input state executed as instructions. Separate
+                    roles and sanitize inputs.
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="padding: 8px 80px 44px"></div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S11 · DECISION MATRIX ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr">
+              <div class="lbl" style="color: #fcd34d; margin-bottom: 12px">
+                Reference
+              </div>
+              <h2
+                style="font-size: 42px; font-weight: 800; letter-spacing: -1px"
+              >
+                Which Stateful Technique Do I Need?
+              </h2>
+              <p style="font-size: 13px; color: #64748b; margin-top: 8px">
+                Match constraints to technique. Based on validated AI
+                Engineering tradeoffs.
+              </p>
+            </div>
+            <div class="body">
+              <table
+                style="width: 100%; border-collapse: collapse; font-size: 13px"
+              >
+                <thead>
+                  <tr style="background: #0d0d1e">
+                    <th
+                      style="
+                        padding: 10px 14px;
+                        text-align: left;
+                        font-size: 9px;
+                        color: #4a516a;
+                        letter-spacing: 1.5px;
+                        border-bottom: 1px solid #1e1e38;
+                        font-weight: 400;
+                        width: 22%;
+                      "
+                    >
+                      Technique
+                    </th>
+                    <th
+                      style="
+                        padding: 10px 14px;
+                        text-align: left;
+                        font-size: 9px;
+                        color: #4a516a;
+                        letter-spacing: 1.5px;
+                        border-bottom: 1px solid #1e1e38;
+                        font-weight: 400;
+                        width: 20%;
+                      "
+                    >
+                      FE Infra Analog
+                    </th>
+                    <th
+                      style="
+                        padding: 10px 14px;
+                        text-align: center;
+                        font-size: 9px;
+                        color: #4a516a;
+                        letter-spacing: 1.5px;
+                        border-bottom: 1px solid #1e1e38;
+                        font-weight: 400;
+                        width: 12%;
+                      "
+                    >
+                      Scalability
+                    </th>
+                    <th
+                      style="
+                        padding: 10px 14px;
+                        text-align: center;
+                        font-size: 9px;
+                        color: #4a516a;
+                        letter-spacing: 1.5px;
+                        border-bottom: 1px solid #1e1e38;
+                        font-weight: 400;
+                        width: 12%;
+                      "
+                    >
+                      Latency
+                    </th>
+                    <th
+                      style="
+                        padding: 10px 14px;
+                        text-align: left;
+                        font-size: 9px;
+                        color: #4a516a;
+                        letter-spacing: 1.5px;
+                        border-bottom: 1px solid #1e1e38;
+                        font-weight: 400;
+                        width: 20%;
+                      "
+                    >
+                      Infra Needed
+                    </th>
+                    <th
+                      style="
+                        padding: 10px 14px;
+                        text-align: left;
+                        font-size: 9px;
+                        color: #4a516a;
+                        letter-spacing: 1.5px;
+                        border-bottom: 1px solid #1e1e38;
+                        font-weight: 400;
+                      "
+                    >
+                      Implementation
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="border-bottom: 1px solid #0f0f1c">
+                    <td style="padding: 9px 14px">
+                      <div style="display: flex; align-items: center; gap: 8px">
+                        <div
+                          style="
+                            width: 7px;
+                            height: 7px;
+                            border-radius: 50%;
+                            background: #ef4444;
+                            flex-shrink: 0;
+                          "
+                        ></div>
+                        <span style="color: #94a3b8">Naive Full Context</span>
+                      </div>
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">
+                      No caching
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #ef4444;
+                        text-align: center;
+                        font-size: 13px;
+                      "
+                    >
+                      Low
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #252540;
+                        text-align: center;
+                        font-size: 14px;
+                      "
+                    >
+                      Med
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">None</td>
+                    <td style="padding: 9px 14px; color: #4a516a">Hours</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #0f0f1c">
+                    <td style="padding: 9px 14px">
+                      <div style="display: flex; align-items: center; gap: 8px">
+                        <div
+                          style="
+                            width: 7px;
+                            height: 7px;
+                            border-radius: 50%;
+                            background: #f97316;
+                            flex-shrink: 0;
+                          "
+                        ></div>
+                        <span style="color: #94a3b8">Sliding Window</span>
+                      </div>
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">
+                      react-window
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #ef4444;
+                        text-align: center;
+                        font-size: 13px;
+                      "
+                    >
+                      Low
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #34d399;
+                        text-align: center;
+                        font-size: 13px;
+                      "
+                    >
+                      Fast
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">None</td>
+                    <td style="padding: 9px 14px; color: #4a516a">Hours</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #0f0f1c">
+                    <td style="padding: 9px 14px">
+                      <div style="display: flex; align-items: center; gap: 8px">
+                        <div
+                          style="
+                            width: 7px;
+                            height: 7px;
+                            border-radius: 50%;
+                            background: #eab308;
+                            flex-shrink: 0;
+                          "
+                        ></div>
+                        <span style="color: #94a3b8">Summarization</span>
+                      </div>
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">useMemo()</td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #eab308;
+                        text-align: center;
+                        font-size: 13px;
+                      "
+                    >
+                      Med
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #ef4444;
+                        text-align: center;
+                        font-size: 13px;
+                      "
+                    >
+                      Slow
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">None</td>
+                    <td style="padding: 9px 14px; color: #4a516a">Days</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #0f0f1c">
+                    <td style="padding: 9px 14px">
+                      <div style="display: flex; align-items: center; gap: 8px">
+                        <div
+                          style="
+                            width: 7px;
+                            height: 7px;
+                            border-radius: 50%;
+                            background: #22c55e;
+                            flex-shrink: 0;
+                          "
+                        ></div>
+                        <span style="color: #94a3b8">RAG State</span>
+                      </div>
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">
+                      React Query
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #34d399;
+                        text-align: center;
+                        font-size: 13px;
+                      "
+                    >
+                      High
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #34d399;
+                        text-align: center;
+                        font-size: 13px;
+                      "
+                    >
+                      Fast
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">Vector DB</td>
+                    <td style="padding: 9px 14px; color: #4a516a">1–2 wks</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #1e1e38">
+                    <td style="padding: 9px 14px">
+                      <div style="display: flex; align-items: center; gap: 8px">
+                        <div
+                          style="
+                            width: 7px;
+                            height: 7px;
+                            border-radius: 50%;
+                            background: #06b6d4;
+                            flex-shrink: 0;
+                          "
+                        ></div>
+                        <span style="color: #22d3ee">Prompt Caching</span>
+                      </div>
+                    </td>
+                    <td style="padding: 9px 14px; color: #06b6d4">
+                      CDN Edge Cache
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #34d399;
+                        text-align: center;
+                        font-size: 13px;
+                      "
+                    >
+                      High
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #34d399;
+                        text-align: center;
+                        font-size: 13px;
+                      "
+                    >
+                      Very Fast*
+                    </td>
+                    <td style="padding: 9px 14px; color: #06b6d4">
+                      API Feature
+                    </td>
+                    <td style="padding: 9px 14px; color: #06b6d4">Days</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 9px 14px; color: #4a516a">
+                      <i>GraphRAG / Agents</i>
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">
+                      <i>Out of Scope (L5/L6)</i>
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #4a516a;
+                        text-align: center;
+                      "
+                    >
+                      <i>High</i>
+                    </td>
+                    <td
+                      style="
+                        padding: 9px 14px;
+                        color: #4a516a;
+                        text-align: center;
+                      "
+                    >
+                      <i>Slow</i>
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">
+                      <i>Graph DB / MCP</i>
+                    </td>
+                    <td style="padding: 9px 14px; color: #4a516a">
+                      <i>Months</i>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="ftr" style="padding-top: 10px">
+              <span style="font-size: 11px; color: #4a516a"
+                >* Very Fast on cache hit. Cold start (cache miss) is still
+                slow.</span
+              >
+            </div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+
+          <!-- ═══════════════════════════════ S12 · TAKEAWAYS ═══════════════════════════════ -->
+          <div class="sl">
+            <div class="gl"></div>
+            <div class="hdr">
+              <div class="lbl" style="color: #fcd34d; margin-bottom: 12px">
+                Summary
+              </div>
+              <h2
+                style="font-size: 42px; font-weight: 800; letter-spacing: -1px"
+              >
+                5 Things to Walk Away With
+              </h2>
+            </div>
+            <div
+              class="body"
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px"
+            >
+              <div
+                style="
+                  background: #0d0d1e;
+                  border: 1px solid #f59e0b18;
+                  border-radius: 10px;
+                  padding: 16px 18px;
+                  display: flex;
+                  gap: 14px;
+                  align-items: flex-start;
+                  position: relative;
+                  overflow: hidden;
+                "
+              >
+                <div
+                  style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    bottom: 0;
+                    width: 3px;
+                    background: #f59e0b;
+                  "
+                ></div>
+                <div
+                  style="
+                    font-size: 26px;
+                    font-weight: 800;
+                    font-family: &quot;Syne&quot;, sans-serif;
+                    color: #f59e0b18;
+                    flex-shrink: 0;
+                    line-height: 1;
+                    margin-top: 2px;
+                  "
+                >
+                  01
+                </div>
+                <div>
+                  <div
+                    style="
+                      font-size: 13px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #e2e8f0;
+                      margin-bottom: 5px;
+                    "
+                  >
+                    Memory = State Management
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.6"
+                  >
+                    The foundation model doesn't remember anything. "Context
+                    Engineering" is explicitly injecting state payloads into a
+                    stateless API.
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  background: #0d0d1e;
+                  border: 1px solid #ef444418;
+                  border-radius: 10px;
+                  padding: 16px 18px;
+                  display: flex;
+                  gap: 14px;
+                  align-items: flex-start;
+                  position: relative;
+                  overflow: hidden;
+                "
+              >
+                <div
+                  style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    bottom: 0;
+                    width: 3px;
+                    background: #ef4444;
+                  "
+                ></div>
+                <div
+                  style="
+                    font-size: 26px;
+                    font-weight: 800;
+                    font-family: &quot;Syne&quot;, sans-serif;
+                    color: #ef444418;
+                    flex-shrink: 0;
+                    line-height: 1;
+                    margin-top: 2px;
+                  "
+                >
+                  02
+                </div>
+                <div>
+                  <div
+                    style="
+                      font-size: 13px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #e2e8f0;
+                      margin-bottom: 5px;
+                    "
+                  >
+                    Prompts ⊂ Context
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.6"
+                  >
+                    A prompt is just a named region inside the context window.
+                    Use explicit structural tags (like `&lt;rules&gt;` or
+                    `&lt;skills&gt;`) to structure your state.
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  background: #0d0d1e;
+                  border: 1px solid #34d39918;
+                  border-radius: 10px;
+                  padding: 16px 18px;
+                  display: flex;
+                  gap: 14px;
+                  align-items: flex-start;
+                  position: relative;
+                  overflow: hidden;
+                "
+              >
+                <div
+                  style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    bottom: 0;
+                    width: 3px;
+                    background: #34d399;
+                  "
+                ></div>
+                <div
+                  style="
+                    font-size: 26px;
+                    font-weight: 800;
+                    font-family: &quot;Syne&quot;, sans-serif;
+                    color: #34d39918;
+                    flex-shrink: 0;
+                    line-height: 1;
+                    margin-top: 2px;
+                  "
+                >
+                  03
+                </div>
+                <div>
+                  <div
+                    style="
+                      font-size: 13px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #e2e8f0;
+                      margin-bottom: 5px;
+                    "
+                  >
+                    State Positioning is a performance variable
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.6"
+                  >
+                    'Lost in the Middle': recall drops to ~32% in the center.
+                    Critical state payloads belong at the start or end.
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  background: #0d0d1e;
+                  border: 1px solid #60a5fa18;
+                  border-radius: 10px;
+                  padding: 16px 18px;
+                  display: flex;
+                  gap: 14px;
+                  align-items: flex-start;
+                  position: relative;
+                  overflow: hidden;
+                "
+              >
+                <div
+                  style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    bottom: 0;
+                    width: 3px;
+                    background: #60a5fa;
+                  "
+                ></div>
+                <div
+                  style="
+                    font-size: 26px;
+                    font-weight: 800;
+                    font-family: &quot;Syne&quot;, sans-serif;
+                    color: #60a5fa18;
+                    flex-shrink: 0;
+                    line-height: 1;
+                    margin-top: 2px;
+                  "
+                >
+                  04
+                </div>
+                <div>
+                  <div
+                    style="
+                      font-size: 13px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #e2e8f0;
+                      margin-bottom: 5px;
+                    "
+                  >
+                    Match technique to constraints
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.6"
+                  >
+                    Level 1 (Sliding Window) ships in hours. Level 3 (RAG) takes
+                    weeks. Don't over-engineer state architectures prematurely.
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  background: #0d0d1e;
+                  border: 1px solid #a78bfa18;
+                  border-radius: 10px;
+                  padding: 16px 18px;
+                  display: flex;
+                  gap: 14px;
+                  align-items: flex-start;
+                  position: relative;
+                  overflow: hidden;
+                "
+              >
+                <div
+                  style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    bottom: 0;
+                    width: 3px;
+                    background: #a78bfa;
+                  "
+                ></div>
+                <div
+                  style="
+                    font-size: 26px;
+                    font-weight: 800;
+                    font-family: &quot;Syne&quot;, sans-serif;
+                    color: #a78bfa18;
+                    flex-shrink: 0;
+                    line-height: 1;
+                    margin-top: 2px;
+                  "
+                >
+                  05
+                </div>
+                <div>
+                  <div
+                    style="
+                      font-size: 13px;
+                      font-weight: 700;
+                      font-family: &quot;Syne&quot;, sans-serif;
+                      color: #e2e8f0;
+                      margin-bottom: 5px;
+                    "
+                  >
+                    Inference-time compute is the 3rd lever
+                  </div>
+                  <div
+                    style="font-size: 12px; color: #64748b; line-height: 1.6"
+                  >
+                    Extended thinking parameters let you trade execution time
+                    for reasoning quality after the state payload is sent.
+                  </div>
+                </div>
+              </div>
+              <div
+                style="
+                  background: #0d0d1e;
+                  border: 1px solid #1e1e38;
+                  border-radius: 10px;
+                  padding: 16px 18px;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 10px;
+                "
+              >
+                <div
+                  style="font-size: 9px; color: #4a516a; letter-spacing: 2px"
+                >
+                  OFFICIAL RESOURCES
+                </div>
+                <div style="display: flex; gap: 10px; align-items: flex-start">
+                  <span
+                    style="
+                      color: #f59e0b;
+                      font-size: 13px;
+                      flex-shrink: 0;
+                      margin-top: 1px;
+                    "
+                    >▣</span
+                  >
+                  <div>
+                    <div
+                      style="font-size: 12px; font-weight: 600; color: #94a3b8"
+                    >
+                      AI Engineering: Building Applications with Foundation
+                      Models
+                    </div>
+                    <div style="font-size: 10px; color: #4a516a">
+                      Chip Huyen, O'Reilly
+                    </div>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: flex-start">
+                  <span
+                    style="
+                      color: #60a5fa;
+                      font-size: 13px;
+                      flex-shrink: 0;
+                      margin-top: 1px;
+                    "
+                    >▣</span
+                  >
+                  <div>
+                    <div
+                      style="font-size: 12px; font-weight: 600; color: #94a3b8"
+                    >
+                      Anthropic Prompt Engineering Documentation
+                    </div>
+                    <div style="font-size: 10px; color: #4a516a">
+                      docs.anthropic.com/en/docs
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              style="
+                padding: 10px 80px 32px;
+                position: relative;
+                z-index: 1;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <div style="font-size: 10px; color: #1e1e38; letter-spacing: 2px">
+                DEMYSTIFYING LLM CONTEXT WINDOWS · ENGINEERING STATEFUL AI
+                CONVERSATIONS
+              </div>
+              <div style="font-size: 10px; color: #1e1e38">2026</div>
+            </div>
+            <div class="sn"></div>
+            <div class="sf"></div>
+          </div>
+        </div>
+        <!-- /stage -->
+      </div>
+      <!-- /outer -->
+    </div>
+    <!-- /wrap -->
+
+    <div id="ctrl">
+      <button class="cb" id="prev">←</button>
+      <div id="dots"></div>
+      <span id="ctr">01 / 12</span>
+      <button class="cb" id="next">→</button>
+    </div>
+    <div class="hint">← → arrow keys · click dots to jump</div>
+
+    <script>
+      const slides = document.querySelectorAll(".sl");
+      const N = slides.length;
+      const dotsEl = document.getElementById("dots");
+      let cur = 0;
+
+      // Initialize Dynamic Page Numbers
+      slides.forEach((sl, idx) => {
+        const sn = sl.querySelector(".sn");
+        if (sn) {
+          sn.textContent =
+            String(idx + 1).padStart(2, "0") +
+            " / " +
+            String(N).padStart(2, "0");
+        }
+      });
+
+      // Build dots
+      for (let i = 0; i < N; i++) {
+        const d = document.createElement("div");
+        d.className = "dot" + (i === 0 ? " on" : "");
+        d.onclick = () => go(i);
+        dotsEl.appendChild(d);
+      }
+
+      function go(n) {
+        slides[cur].classList.remove("on");
+        dotsEl.children[cur].classList.remove("on");
+        cur = Math.max(0, Math.min(N - 1, n));
+        slides[cur].classList.add("on");
+        dotsEl.children[cur].classList.add("on");
+        document.getElementById("ctr").textContent =
+          String(cur + 1).padStart(2, "0") + " / " + String(N).padStart(2, "0");
+        document.getElementById("prev").disabled = cur === 0;
+        document.getElementById("next").disabled = cur === N - 1;
+      }
+
+      document.getElementById("prev").onclick = () => go(cur - 1);
+      document.getElementById("next").onclick = () => go(cur + 1);
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") go(cur + 1);
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") go(cur - 1);
+      });
+      go(0);
+
+      // ── SCALE STAGE TO FIT CONTAINER (Enhanced for Mobile) ──
+      function rescale() {
+        const wrap = document.getElementById("wrap");
+        const outer = document.getElementById("outer");
+        const stage = document.getElementById("stage");
+
+        // Calculate scale based on container width
+        let scale = wrap.clientWidth / 1280;
+
+        // Maintain aspect ratio
+        stage.style.transform = "scale(" + scale + ")";
+        outer.style.height = 720 * scale + "px";
+      }
+
+      rescale();
+      window.addEventListener("resize", rescale);
+    </script>
+  </body>
+</html>
