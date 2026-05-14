@@ -26,6 +26,12 @@ https://github.com/user-attachments/assets/95b7bd3e-688e-4078-b9e5-cf37429da8f8
 
 https://github.com/user-attachments/assets/c0e6cd68-8bbb-4975-8b32-e59df6de12b8
 
+**Context Window Demo**:
+
+**Technique**: Interactive demonstration of LLM memory management strategies — Full Context (L0), Sliding Window (L1), and Summarization (L2) — with a live Context Window Inspector showing the exact API payload.
+
+**Demo**: [Link](https://thasup-context-demo.streamlit.app/)
+
 ## ✨ Features
 
 ### Learning Modules
@@ -38,6 +44,14 @@ https://github.com/user-attachments/assets/c0e6cd68-8bbb-4975-8b32-e59df6de12b8
   - 💬 Engage in interactive conversations with memory capabilities.
   - 🧠 Experiment with different memory techniques (Summary vs. Buffer).
   - 🔄 Maintain context across conversations.
+
+- **Context Window Demo**:
+  - 🔴 **L0 · Full Context**: Send entire history — perfect recall, hits token limits.
+  - 🟠 **L1 · Sliding Window**: Keep last N turns — bounded cost, FIFO amnesia.
+  - 🟡 **L2 · Summarization**: Compress old turns into digest — preserves gist, lossy.
+  - 🔍 **Live Inspector**: See exactly what payload is sent to the LLM API.
+  - 📊 **Token Stats**: Real-time estimated token count and eviction tracking.
+  - 🔗 **LangSmith Integration**: Monitor and inspect all LLM traces.
 
 ### Hands-On Experience
 - **LLM Exploration**: Learn how to implement and interact with various OpenAI models.
