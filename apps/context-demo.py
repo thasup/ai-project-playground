@@ -75,13 +75,10 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-    /* Global dark theme tweaks */
-    .stApp { background-color: #07070f; }
-
     /* Inspector panel */
     .ctx-inspector {
-        background: #0d0d1e;
-        border: 1px solid #1e1e38;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
         padding: 16px;
         font-family: 'JetBrains Mono', monospace;
@@ -90,35 +87,35 @@ st.markdown(
         overflow-y: auto;
     }
     .ctx-inspector .msg-system {
-        color: #a78bfa;
-        border-left: 3px solid #a78bfa;
+        color: #6d28d9;
+        border-left: 3px solid #8b5cf6;
         padding: 6px 10px;
         margin-bottom: 6px;
-        background: #a78bfa08;
+        background: #f5f3ff;
         border-radius: 0 6px 6px 0;
     }
     .ctx-inspector .msg-human {
-        color: #60a5fa;
-        border-left: 3px solid #60a5fa;
+        color: #1d4ed8;
+        border-left: 3px solid #3b82f6;
         padding: 6px 10px;
         margin-bottom: 6px;
-        background: #60a5fa08;
+        background: #eff6ff;
         border-radius: 0 6px 6px 0;
     }
     .ctx-inspector .msg-ai {
-        color: #34d399;
-        border-left: 3px solid #34d399;
+        color: #047857;
+        border-left: 3px solid #10b981;
         padding: 6px 10px;
         margin-bottom: 6px;
-        background: #34d39908;
+        background: #ecfdf5;
         border-radius: 0 6px 6px 0;
     }
     .ctx-inspector .msg-summary {
-        color: #f59e0b;
+        color: #b45309;
         border-left: 3px solid #f59e0b;
         padding: 6px 10px;
         margin-bottom: 6px;
-        background: #f59e0b08;
+        background: #fffbeb;
         border-radius: 0 6px 6px 0;
     }
     .ctx-inspector .msg-label {
@@ -147,8 +144,8 @@ st.markdown(
         display: flex;
         gap: 16px;
         padding: 10px 16px;
-        background: #0d0d1e;
-        border: 1px solid #1e1e38;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 8px;
         margin-bottom: 12px;
     }
@@ -159,24 +156,24 @@ st.markdown(
     }
     .stats-bar .stat-label {
         font-size: 9px;
-        color: #4a516a;
+        color: #64748b;
         letter-spacing: 1.5px;
     }
     .stats-bar .stat-value {
         font-size: 16px;
         font-weight: 700;
-        color: #e2e8f0;
+        color: #1e293b;
     }
 
     /* Evicted messages */
     .evicted-msg {
-        color: #ef4444;
+        color: #dc2626;
         border-left: 3px solid #ef4444;
         padding: 6px 10px;
         margin-bottom: 6px;
-        background: #ef444408;
+        background: #fef2f2;
         border-radius: 0 6px 6px 0;
-        opacity: 0.5;
+        opacity: 0.6;
         text-decoration: line-through;
     }
 
@@ -360,7 +357,7 @@ def render_stats(context_messages: list, full_history: list, evicted_count: int 
         </div>
         <div class="stat">
             <div class="stat-label">EVICTED</div>
-            <div class="stat-value" style="color: {'#ef4444' if evicted_count > 0 else '#34d399'}">{evicted_count}</div>
+            <div class="stat-value" style="color: {'#dc2626' if evicted_count > 0 else '#059669'}">{evicted_count}</div>
         </div>
     </div>
     """,
@@ -403,8 +400,8 @@ with st.sidebar:
         st.markdown(
             f"""
         <div style="
-            background: {meta['color']}08;
-            border: 1px solid {meta['color']}28;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
             border-left: 3px solid {meta['color']};
             border-radius: 8px;
             padding: 12px 14px;
@@ -413,10 +410,10 @@ with st.sidebar:
             <div style="font-size: 11px; color: {meta['color']}; letter-spacing: 1.5px; margin-bottom: 6px; font-weight: 600;">
                 {meta['tag']}
             </div>
-            <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
+            <div style="font-size: 12px; color: #475569; line-height: 1.5;">
                 {meta['description']}
             </div>
-            <div style="font-size: 11px; color: #d97706; margin-top: 8px; line-height: 1.4;">
+            <div style="font-size: 11px; color: #92400e; margin-top: 8px; line-height: 1.4;">
                 {meta['analogy']}
             </div>
         </div>
@@ -499,10 +496,10 @@ st.markdown(
 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
     <span style="font-size: 28px;">🧠</span>
     <div>
-        <div style="font-size: 24px; font-weight: 800; color: #e2e8f0; letter-spacing: -0.5px;">
+        <div style="font-size: 24px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;">
             Context Window Demo
         </div>
-        <div style="font-size: 12px; color: #4a516a; letter-spacing: 1px;">
+        <div style="font-size: 12px; color: #94a3b8; letter-spacing: 1px;">
             DEMYSTIFYING LLM MEMORY MANAGEMENT
         </div>
     </div>
@@ -518,8 +515,8 @@ st.markdown(
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: {meta['color']}12;
-    border: 1px solid {meta['color']}36;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     padding: 6px 14px;
     border-radius: 6px;
     margin-bottom: 16px;
