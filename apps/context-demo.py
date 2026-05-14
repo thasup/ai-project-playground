@@ -61,6 +61,15 @@ LEVEL_META = {
         "pros": ["Preserves semantic gist", "Bounded context size"],
         "cons": ["Lossy compression", "Extra latency for summarization"],
     },
+    "L3 · RAG": {
+        "tag": "L3",
+        "color": "#22c55e",
+        "icon": "🟢",
+        "description": "Don't send history/data blindly. **Search** for the most relevant 'chunks' from a large database and inject only them.",
+        "analogy": "⚛ Like a Database Query — only fetch the specific rows needed for the current view",
+        "pros": ["Infinite 'virtual' context", "Low cost per query", "Scales to millions of docs"],
+        "cons": ["Retrieval latency", "Complexity (Vector DB, Embeddings)", "Risk of 'hallucination' if retrieval fails"],
+    },
 }
 
 # ── Page config ─────────────────────────────────────────────────────────────
@@ -229,32 +238,53 @@ def build_context_l1(
     return messages, evicted
 
 
-def build_context_l2(
+def build_context_l3(
     system_prompt: str,
     full_history: list[dict],
-    summary: str,
-    recent_window: int,
+    retrieved_chunks: list[str],
 ) -> list:
-    """L2: Summary + recent window. The summary covers older turns,
-    recent turns are kept verbatim.
-    """
+    """L3: RAG — system prompt + retrieved knowledge + recent history."""
     messages = [SystemMessage(content=system_prompt)]
 
-    # Inject summary of older turns
-    if summary:
-        summary_block = (
-            f"[CONVERSATION SUMMARY — compressed state of older turns]\n{summary}\n"
-            f"[END SUMMARY]"
+    # Inject retrieved knowledge
+    if retrieved_chunks:
+        knowledge_block = (
+            "### EXTRACTED KNOWLEDGE (Contextually Relevant)\n"
+            "The following facts were retrieved from the external database based on your query:\n\n"
+            + "\n---\n".join(retrieved_chunks)
+            + "\n\n### END KNOWLEDGE"
         )
-        messages.append(SystemMessage(content=summary_block))
+        messages.append(SystemMessage(content=knowledge_block))
 
-    # Keep recent turns verbatim
-    recent = full_history[-recent_window:] if len(full_history) > recent_window else full_history
+    # For L3 demo, we'll keep the last 2 turns of history to maintain conversational flow
+    recent = full_history[-2:] if len(full_history) > 2 else full_history
     for turn in recent:
         messages.append(HumanMessage(content=turn["human"]))
         if turn.get("ai"):
             messages.append(AIMessage(content=turn["ai"]))
     return messages
+
+
+def simple_retrieval(query: str, knowledge_base: list[str], top_k: int = 2) -> list[str]:
+    """A simple 'semantic' retrieval mockup.
+    In a real app, this would use Vector Embeddings (Chroma, Pinecone, etc.).
+    Here we use basic keyword overlap for pedagogical transparency.
+    """
+    if not query:
+        return []
+
+    # Simple keyword scoring
+    query_words = set(query.lower().split())
+    scores = []
+    for chunk in knowledge_base:
+        chunk_words = set(chunk.lower().replace(".", "").replace(",", "").split())
+        overlap = len(query_words.intersection(chunk_words))
+        scores.append((overlap, chunk))
+
+    # Sort by score and return top_k
+    scores.sort(key=lambda x: x[0], reverse=True)
+    # Only return if there's some match, otherwise just return first k for demo
+    return [s[1] for s in scores[:top_k] if s[0] > 0]
 
 
 def generate_summary(llm, turns_to_summarize: list[dict], existing_summary: str = "") -> str:
@@ -309,6 +339,11 @@ def render_inspector(context_messages: list, evicted_turns: list | None = None):
             if "[CONVERSATION SUMMARY" in msg.content:
                 css_class = "msg-summary"
                 label = "SUMMARY DIGEST"
+            elif "EXTRACTED KNOWLEDGE" in msg.content:
+                css_class = "msg-ai"  # Use AI green for knowledge
+                label = "RETRIEVED KNOWLEDGE (RAG)"
+                # Style override for RAG chunk
+                msg_content = msg.content
             else:
                 css_class = "msg-system"
                 label = "SYSTEM"
@@ -449,8 +484,29 @@ with st.sidebar:
                 key="slider_summarize_threshold",
                 help="Trigger summarization when unsummarized turns exceed this",
             )
+        elif "L3" in selected_mode:
+            top_k = st.slider(
+                "Top-K Retrieval",
+                min_value=1,
+                max_value=5,
+                value=2,
+                key="slider_top_k",
+                help="Number of chunks to retrieve from Knowledge Base",
+            )
+            st.info("Edit the Knowledge Base in the section below!")
         else:
             st.info("L0 has no tunable parameters — everything is sent!")
+
+    # Knowledge Base (for L3)
+    if "L3" in selected_mode:
+        with st.expander("📚 Knowledge Base (RAG Source)", expanded=True):
+            kb_text = st.text_area(
+                "Enter facts (one per line)",
+                value="\n".join(st.session_state.knowledge_base),
+                height=200,
+                key="textarea_kb",
+            )
+            st.session_state.knowledge_base = [line.strip() for line in kb_text.split("\n") if line.strip()]
 
     # System prompt
     with st.expander("📝 System Prompt", expanded=False):
@@ -489,6 +545,16 @@ if "summary" not in st.session_state:
     st.session_state.summary = ""
 if "chat_display" not in st.session_state:
     st.session_state.chat_display = []  # for UI display
+if "knowledge_base" not in st.session_state:
+    st.session_state.knowledge_base = [
+        "The project code name is 'Project Antigravity'.",
+        "The launch date is set for June 15, 2026.",
+        "The lead engineer is Dr. Sarah Chen.",
+        "The project headquarters is located in Bangkok, Thailand.",
+        "Project Antigravity uses a state-of-the-art context management engine.",
+    ]
+if "retrieved_chunks" not in st.session_state:
+    st.session_state.retrieved_chunks = []
 
 # ── Main Layout ─────────────────────────────────────────────────────────────
 st.markdown(
@@ -579,6 +645,15 @@ with chat_col:
                 st.session_state.summary,
                 recent_window,
             )
+        elif "L3" in selected_mode:
+            # Perform retrieval
+            with st.spinner("🔍 Searching Knowledge Base..."):
+                st.session_state.retrieved_chunks = simple_retrieval(
+                    user_input, st.session_state.knowledge_base, top_k
+                )
+            context_messages = build_context_l3(
+                system_prompt, st.session_state.full_history, st.session_state.retrieved_chunks
+            )
 
         # Get AI response
         with st.chat_message("assistant"):
@@ -619,6 +694,10 @@ with inspector_col:
                 st.session_state.full_history,
                 st.session_state.summary,
                 recent_window,
+            )
+        elif "L3" in selected_mode:
+            display_context = build_context_l3(
+                system_prompt, st.session_state.full_history, st.session_state.retrieved_chunks
             )
     else:
         display_context = [SystemMessage(content=system_prompt)]
