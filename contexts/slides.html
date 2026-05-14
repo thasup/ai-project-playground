@@ -1636,8 +1636,7 @@
                 We focus on implementing Levels 0 through 4.<br />
                 <span style="color: #ef4444"
                   >* Levels 5 & 6 represent autonomous workflows currently
-                  outside our explicit state management scope (and my current
-                  AOC).</span
+                  outside our explicit state management scope.</span
                 >
               </div>
             </div>
@@ -1674,6 +1673,7 @@
                 gap: 16px;
               "
             >
+              <!-- L0 -->
               <div class="card" style="border: 1px solid #ef444420">
                 <div
                   class="topbar"
@@ -1731,7 +1731,6 @@
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 10px;
-                    flex: 1;
                   "
                 >
                   <div>
@@ -1756,17 +1755,6 @@
                         >Zero complexity</span
                       >
                     </div>
-                    <div class="row">
-                      <span class="plus">+</span
-                      ><span
-                        style="
-                          font-size: 11px;
-                          color: #64748b;
-                          line-height: 1.5;
-                        "
-                        >Perfect recall</span
-                      >
-                    </div>
                   </div>
                   <div>
                     <div
@@ -1787,24 +1775,99 @@
                           color: #64748b;
                           line-height: 1.5;
                         "
-                        >Hits hard token limits</span
-                      >
-                    </div>
-                    <div class="row">
-                      <span class="minus">−</span
-                      ><span
-                        style="
-                          font-size: 11px;
-                          color: #64748b;
-                          line-height: 1.5;
-                        "
-                        >Costly scaling</span
+                        >Hits token limits</span
                       >
                     </div>
                   </div>
                 </div>
+                <!-- SVG DIAGRAM -->
+                <div
+                  style="
+                    height: 70px;
+                    background: #07070f;
+                    border-radius: 6px;
+                    margin-top: auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid #1e1e38;
+                    position: relative;
+                  "
+                >
+                  <div
+                    style="
+                      position: absolute;
+                      top: 20px;
+                      width: 100%;
+                      height: 1px;
+                      border-top: 1px dashed #ef4444;
+                    "
+                  ></div>
+                  <span
+                    style="
+                      position: absolute;
+                      top: 4px;
+                      right: 6px;
+                      font-size: 8px;
+                      color: #ef4444;
+                    "
+                    >TOKEN LIMIT</span
+                  >
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      gap: 4px;
+                      justify-content: flex-end;
+                      height: 100%;
+                      padding-bottom: 10px;
+                    "
+                  >
+                    <div
+                      style="
+                        width: 100px;
+                        height: 8px;
+                        background: #ef444430;
+                        border: 1px solid #ef4444;
+                        border-radius: 2px;
+                        z-index: 1;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 100px;
+                        height: 8px;
+                        background: #ef444430;
+                        border: 1px solid #ef4444;
+                        border-radius: 2px;
+                        z-index: 1;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 100px;
+                        height: 8px;
+                        background: #64748b30;
+                        border: 1px solid #64748b;
+                        border-radius: 2px;
+                        z-index: 1;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 100px;
+                        height: 8px;
+                        background: #64748b30;
+                        border: 1px solid #64748b;
+                        border-radius: 2px;
+                        z-index: 1;
+                      "
+                    ></div>
+                  </div>
+                </div>
               </div>
 
+              <!-- L1 -->
               <div class="card" style="border: 1px solid #f9731620">
                 <div
                   class="topbar"
@@ -1861,7 +1924,6 @@
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 10px;
-                    flex: 1;
                   "
                 >
                   <div>
@@ -1883,18 +1945,7 @@
                           color: #64748b;
                           line-height: 1.5;
                         "
-                        >Bounded API cost</span
-                      >
-                    </div>
-                    <div class="row">
-                      <span class="plus">+</span
-                      ><span
-                        style="
-                          font-size: 11px;
-                          color: #64748b;
-                          line-height: 1.5;
-                        "
-                        >No DB needed</span
+                        >Bounded cost</span
                       >
                     </div>
                   </div>
@@ -1920,21 +1971,105 @@
                         >Permanent amnesia</span
                       >
                     </div>
-                    <div class="row">
-                      <span class="minus">−</span
-                      ><span
-                        style="
-                          font-size: 11px;
-                          color: #64748b;
-                          line-height: 1.5;
-                        "
-                        >Naive FIFO eviction</span
-                      >
-                    </div>
+                  </div>
+                </div>
+                <!-- SVG DIAGRAM -->
+                <div
+                  style="
+                    height: 70px;
+                    background: #07070f;
+                    border-radius: 6px;
+                    margin-top: auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid #1e1e38;
+                    position: relative;
+                    overflow: hidden;
+                  "
+                >
+                  <div
+                    style="
+                      position: absolute;
+                      width: 110px;
+                      height: 40px;
+                      border: 1px solid #f97316;
+                      border-radius: 4px;
+                      background: #f9731608;
+                    "
+                  ></div>
+                  <span
+                    style="
+                      position: absolute;
+                      top: 4px;
+                      right: 6px;
+                      font-size: 8px;
+                      color: #f97316;
+                    "
+                    >WINDOW</span
+                  >
+                  <div style="display: flex; gap: 6px; align-items: center">
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        background: #1e1e38;
+                        border-radius: 3px;
+                        opacity: 0.3;
+                        transform: translateX(-10px);
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        background: #64748b30;
+                        border: 1px solid #64748b;
+                        border-radius: 3px;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        background: #64748b30;
+                        border: 1px solid #64748b;
+                        border-radius: 3px;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        background: #64748b30;
+                        border: 1px solid #64748b;
+                        border-radius: 3px;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        background: #64748b30;
+                        border: 1px solid #64748b;
+                        border-radius: 3px;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 20px;
+                        height: 20px;
+                        border: 1px dashed #64748b;
+                        border-radius: 3px;
+                        opacity: 0.5;
+                        transform: translateX(10px);
+                      "
+                    ></div>
                   </div>
                 </div>
               </div>
 
+              <!-- L2 -->
               <div class="card" style="border: 1px solid #eab30820">
                 <div
                   class="topbar"
@@ -1992,7 +2127,6 @@
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 10px;
-                    flex: 1;
                   "
                 >
                   <div>
@@ -2040,18 +2174,93 @@
                         >Lossy compression</span
                       >
                     </div>
-                    <div class="row">
-                      <span class="minus">−</span
-                      ><span
-                        style="
-                          font-size: 11px;
-                          color: #64748b;
-                          line-height: 1.5;
-                        "
-                        >Extra latency to summarize</span
-                      >
-                    </div>
                   </div>
+                </div>
+                <!-- SVG DIAGRAM -->
+                <div
+                  style="
+                    height: 70px;
+                    background: #07070f;
+                    border-radius: 6px;
+                    margin-top: auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid #1e1e38;
+                    gap: 12px;
+                  "
+                >
+                  <div style="display: flex; flex-direction: column; gap: 4px">
+                    <div
+                      style="
+                        width: 36px;
+                        height: 6px;
+                        background: #64748b30;
+                        border: 1px solid #64748b;
+                        border-radius: 2px;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 36px;
+                        height: 6px;
+                        background: #64748b30;
+                        border: 1px solid #64748b;
+                        border-radius: 2px;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 36px;
+                        height: 6px;
+                        background: #64748b30;
+                        border: 1px solid #64748b;
+                        border-radius: 2px;
+                      "
+                    ></div>
+                  </div>
+                  <div style="color: #eab308; font-size: 16px">→</div>
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 2px;
+                    "
+                  >
+                    <div
+                      style="
+                        width: 28px;
+                        height: 28px;
+                        background: #eab30820;
+                        border: 1px solid #eab308;
+                        border-radius: 4px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                      "
+                    >
+                      <div
+                        style="
+                          width: 14px;
+                          height: 2px;
+                          background: #eab308;
+                          border-radius: 1px;
+                        "
+                      ></div>
+                    </div>
+                    <span style="font-size: 7px; color: #eab308">DIGEST</span>
+                  </div>
+                  <div style="color: #4a516a; font-size: 16px">+</div>
+                  <div
+                    style="
+                      width: 36px;
+                      height: 6px;
+                      background: #64748b30;
+                      border: 1px solid #64748b;
+                      border-radius: 2px;
+                    "
+                  ></div>
                 </div>
               </div>
             </div>
@@ -2178,8 +2387,7 @@
                         line-height: 1.5;
                         padding-top: 2px;
                       "
-                      >Data chunks are embedded and stored in an external Vector
-                      DB.</span
+                      >Embed external data chunks into Vector DB.</span
                     >
                   </div>
                   <div class="row">
@@ -2205,36 +2413,122 @@
                         line-height: 1.5;
                         padding-top: 2px;
                       "
-                      >When user queries, retrieve Top-K similar state
-                      chunks.</span
+                      >Retrieve Top-K similar state chunks per user query.</span
                     >
                   </div>
-                  <div class="row">
-                    <div
-                      style="
-                        width: 20px;
-                        height: 20px;
-                        border-radius: 50%;
-                        background: #22c55e18;
-                        border: 1px solid #22c55e36;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        flex-shrink: 0;
-                      "
+                </div>
+                <!-- SVG DIAGRAM -->
+                <div
+                  style="
+                    height: 80px;
+                    background: #07070f;
+                    border-radius: 6px;
+                    margin-top: auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid #1e1e38;
+                    gap: 16px;
+                  "
+                >
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 6px;
+                    "
+                  >
+                    <svg
+                      width="24"
+                      height="28"
+                      viewBox="0 0 24 28"
+                      fill="none"
+                      stroke="#22c55e"
+                      stroke-width="1.5"
                     >
-                      <span style="font-size: 9px; color: #22c55e">3</span>
-                    </div>
+                      <ellipse cx="12" cy="6" rx="10" ry="4"></ellipse>
+                      <path d="M2 6v16c0 2.2 4.5 4 10 4s10-1.8 10-4V6"></path>
+                      <path d="M2 14c0 2.2 4.5 4 10 4s10-1.8 10-4"></path>
+                    </svg>
                     <span
                       style="
-                        font-size: 12px;
-                        color: #94a3b8;
-                        line-height: 1.5;
-                        padding-top: 2px;
+                        font-size: 8px;
+                        color: #22c55e;
+                        letter-spacing: 1px;
                       "
-                      >Inject into Context Window. Keeps TTFT low. Essential for
-                      massive enterprise datasets.</span
+                      >VECTOR DB</span
                     >
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                    "
+                  >
+                    <span
+                      style="
+                        font-size: 8px;
+                        color: #4a516a;
+                        margin-bottom: -2px;
+                      "
+                      >Top-K</span
+                    >
+                    <div style="color: #22c55e; font-size: 18px">→</div>
+                  </div>
+                  <div
+                    style="
+                      width: 60px;
+                      height: 50px;
+                      background: #22c55e0a;
+                      border: 1px solid #22c55e40;
+                      border-radius: 4px;
+                      padding: 6px;
+                      display: flex;
+                      flex-direction: column;
+                      gap: 4px;
+                      position: relative;
+                    "
+                  >
+                    <span
+                      style="
+                        position: absolute;
+                        top: -6px;
+                        right: 4px;
+                        font-size: 7px;
+                        color: #22c55e;
+                        background: #07070f;
+                        padding: 0 2px;
+                      "
+                      >CONTEXT</span
+                    >
+                    <div
+                      style="
+                        width: 100%;
+                        height: 4px;
+                        background: #64748b30;
+                        border-radius: 2px;
+                        margin-top: 2px;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 100%;
+                        height: 12px;
+                        background: #22c55e30;
+                        border: 1px solid #22c55e;
+                        border-radius: 2px;
+                      "
+                    ></div>
+                    <div
+                      style="
+                        width: 80%;
+                        height: 4px;
+                        background: #64748b30;
+                        border-radius: 2px;
+                      "
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -2332,8 +2626,8 @@
                         line-height: 1.5;
                         padding-top: 2px;
                       "
-                      >Send the entire static state payload (e.g., full
-                      codebase) upfront.</span
+                      >Send the entire static payload (e.g., codebase)
+                      upfront.</span
                     >
                   </div>
                   <div class="row">
@@ -2359,36 +2653,125 @@
                         line-height: 1.5;
                         padding-top: 2px;
                       "
-                      >The Provider caches the
-                      <em>Attention KV State</em> (computation state, not text
-                      output).</span
+                      >Subsequent calls using the identical prefix hit the
+                      cached <em>KV State</em>.</span
                     >
                   </div>
-                  <div class="row">
+                </div>
+                <!-- SVG DIAGRAM -->
+                <div
+                  style="
+                    height: 80px;
+                    background: #07070f;
+                    border-radius: 6px;
+                    margin-top: auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid #1e1e38;
+                    gap: 16px;
+                  "
+                >
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                    "
+                  >
                     <div
                       style="
-                        width: 20px;
-                        height: 20px;
-                        border-radius: 50%;
-                        background: #06b6d418;
-                        border: 1px solid #06b6d436;
+                        width: 34px;
+                        height: 40px;
+                        background: #06b6d410;
+                        border: 1px solid #06b6d440;
+                        border-radius: 3px;
+                        padding: 4px;
                         display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        flex-shrink: 0;
+                        flex-direction: column;
+                        gap: 3px;
+                        position: relative;
                       "
                     >
-                      <span style="font-size: 9px; color: #06b6d4">3</span>
+                      <div
+                        style="width: 100%; height: 2px; background: #06b6d480"
+                      ></div>
+                      <div
+                        style="width: 100%; height: 2px; background: #06b6d480"
+                      ></div>
+                      <div
+                        style="width: 80%; height: 2px; background: #06b6d480"
+                      ></div>
+                      <div
+                        style="width: 100%; height: 2px; background: #06b6d480"
+                      ></div>
+                      <div
+                        style="
+                          position: absolute;
+                          bottom: -6px;
+                          right: -6px;
+                          background: #07070f;
+                          font-size: 7px;
+                          border: 1px solid #06b6d4;
+                          padding: 1px 3px;
+                          border-radius: 2px;
+                          color: #06b6d4;
+                        "
+                      >
+                        2M+
+                      </div>
                     </div>
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                    "
+                  >
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#06b6d4"
+                      stroke-width="1.5"
+                    >
+                      <path
+                        d="M20 16.2A4.5 4.5 0 0 0 17.5 8h-1.8A7 7 0 1 0 4 14.9"
+                      ></path>
+                      <path d="M12 12v9"></path>
+                      <path d="M8 17l4 4 4-4"></path>
+                    </svg>
                     <span
                       style="
-                        font-size: 12px;
-                        color: #94a3b8;
-                        line-height: 1.5;
-                        padding-top: 2px;
+                        font-size: 7px;
+                        color: #06b6d4;
+                        margin-top: 4px;
+                        letter-spacing: 1px;
                       "
-                      >Subsequent API calls using the identical prefix get up to
-                      90% cost reduction and massive speedups.</span
+                      >EDGE CACHE</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      width: 50px;
+                      height: 40px;
+                      background: #06b6d40a;
+                      border: 1px dashed #06b6d460;
+                      border-radius: 4px;
+                      padding: 6px;
+                      display: flex;
+                      flex-direction: column;
+                      justify-content: center;
+                      align-items: center;
+                    "
+                  >
+                    <span style="font-size: 14px">⚡</span>
+                    <span
+                      style="font-size: 7px; color: #06b6d4; margin-top: 2px"
+                      >FAST TTFT</span
                     >
                   </div>
                 </div>
