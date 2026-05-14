@@ -16,8 +16,7 @@ see exactly what payload is sent to the model on each turn.
 
 import streamlit as st
 import os
-import json
-import time
+import io
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
@@ -186,6 +185,12 @@ st.markdown(
         text-decoration: line-through;
     }
 
+    /* Chat container tweaks */
+    [data-testid="stChatMessageContainer"] {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
     /* Hide streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -267,13 +272,12 @@ def build_context_l3(
 
 def simple_retrieval(query: str, knowledge_base: list[str], top_k: int = 2) -> list[str]:
     """A simple 'semantic' retrieval mockup.
-    In a real app, this would use Vector Embeddings (Chroma, Pinecone, etc.).
+    In a real app this would use Vector Embeddings (Chroma, Pinecone, etc.).
     Here we use basic keyword overlap for pedagogical transparency.
     """
     if not query:
         return []
 
-    # Simple keyword scoring
     query_words = set(query.lower().split())
     scores = []
     for chunk in knowledge_base:
@@ -281,10 +285,53 @@ def simple_retrieval(query: str, knowledge_base: list[str], top_k: int = 2) -> l
         overlap = len(query_words.intersection(chunk_words))
         scores.append((overlap, chunk))
 
-    # Sort by score and return top_k
     scores.sort(key=lambda x: x[0], reverse=True)
-    # Only return if there's some match, otherwise just return first k for demo
     return [s[1] for s in scores[:top_k] if s[0] > 0]
+
+
+def chunk_text(text: str, chunk_size: int = 300, overlap: int = 50) -> list[str]:
+    """Split text into overlapping chunks by character count.
+    Uses sentence-boundary awareness: tries to break at newlines/periods.
+    """
+    text = text.strip()
+    if not text:
+        return []
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        # Try to snap to a sentence boundary within the last 60 chars
+        if end < len(text):
+            snap_zone = text[max(start, end - 60):end]
+            for sep in ["\n\n", ".\n", ". ", "\n"]:
+                idx = snap_zone.rfind(sep)
+                if idx != -1:
+                    end = max(start, end - 60) + idx + len(sep)
+                    break
+        chunks.append(text[start:end].strip())
+        start = end - overlap
+        if start >= len(text):
+            break
+    return [c for c in chunks if c]
+
+
+def parse_uploaded_file(uploaded_file) -> str:
+    """Extract plain text from .txt, .md, or .pdf uploaded files."""
+    name = uploaded_file.name.lower()
+    raw = uploaded_file.read()
+
+    if name.endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(raw))
+            pages = [page.extract_text() or "" for page in reader.pages]
+            return "\n\n".join(pages)
+        except Exception as e:
+            return f"[PDF parse error: {e}]"
+    elif name.endswith((".md", ".txt")):
+        return raw.decode("utf-8", errors="replace")
+    else:
+        return "[Unsupported file type]"
 
 
 def generate_summary(llm, turns_to_summarize: list[dict], existing_summary: str = "") -> str:
@@ -500,13 +547,61 @@ with st.sidebar:
     # Knowledge Base (for L3)
     if "L3" in selected_mode:
         with st.expander("📚 Knowledge Base (RAG Source)", expanded=True):
-            kb_text = st.text_area(
-                "Enter facts (one per line)",
-                value="\n".join(st.session_state.knowledge_base),
-                height=200,
-                key="textarea_kb",
-            )
-            st.session_state.knowledge_base = [line.strip() for line in kb_text.split("\n") if line.strip()]
+            tab_manual, tab_upload = st.tabs(["✏️ Manual", "📁 Upload File"])
+
+            with tab_manual:
+                kb_text = st.text_area(
+                    "Enter facts (one per line)",
+                    value="\n".join(st.session_state.knowledge_base),
+                    height=160,
+                    key="textarea_kb",
+                )
+                st.session_state.knowledge_base = [
+                    line.strip() for line in kb_text.split("\n") if line.strip()
+                ]
+
+            with tab_upload:
+                chunk_size = st.slider(
+                    "Chunk size (chars)",
+                    min_value=100, max_value=1000, value=300, step=50,
+                    key="slider_chunk_size",
+                    help="How many characters per chunk",
+                )
+                overlap_size = st.slider(
+                    "Chunk overlap (chars)",
+                    min_value=0, max_value=200, value=50, step=10,
+                    key="slider_overlap_size",
+                    help="How many characters overlap between consecutive chunks",
+                )
+
+                uploaded_files = st.file_uploader(
+                    "Upload .txt, .md, or .pdf",
+                    type=["txt", "md", "pdf"],
+                    accept_multiple_files=True,
+                    key="file_uploader_rag",
+                    label_visibility="collapsed",
+                )
+
+                if uploaded_files:
+                    for uf in uploaded_files:
+                        if uf.name not in st.session_state.file_chunks:
+                            with st.spinner(f"Parsing {uf.name}..."):
+                                text = parse_uploaded_file(uf)
+                                chunks = chunk_text(text, chunk_size, overlap_size)
+                                st.session_state.file_chunks[uf.name] = chunks
+                            st.success(f"✅ {uf.name} — {len(chunks)} chunks added")
+
+                # Show loaded files
+                if st.session_state.file_chunks:
+                    st.markdown("**Loaded files:**")
+                    for fname, chunks in list(st.session_state.file_chunks.items()):
+                        col_a, col_b = st.columns([4, 1])
+                        col_a.markdown(
+                            f"📄 `{fname}` — **{len(chunks)}** chunks",
+                        )
+                        if col_b.button("✕", key=f"btn_remove_{fname}"):
+                            del st.session_state.file_chunks[fname]
+                            st.rerun()
 
     # System prompt
     with st.expander("📝 System Prompt", expanded=False):
@@ -555,6 +650,9 @@ if "knowledge_base" not in st.session_state:
     ]
 if "retrieved_chunks" not in st.session_state:
     st.session_state.retrieved_chunks = []
+# file_chunks: dict[filename -> list[chunk_str]]
+if "file_chunks" not in st.session_state:
+    st.session_state.file_chunks = {}
 
 # ── Main Layout ─────────────────────────────────────────────────────────────
 st.markdown(
@@ -601,20 +699,25 @@ st.markdown(
 chat_col, inspector_col = st.columns([3, 2])
 
 with chat_col:
-    st.markdown("##### 💬 Chat")
+    st.markdown("##### 💬 Conversation")
 
-    # Display chat history
-    for msg in st.session_state.chat_display:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+    # Scrollable chat container
+    chat_container = st.container(height=520)
 
-    # Chat input
-    user_input = st.chat_input("Try: 'My name is Alice' then ask 'What is my name?'", key="chat_input_main")
+    # Display chat history inside container
+    with chat_container:
+        for msg in st.session_state.chat_display:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+    # Chat input (Outside container to stay sticky at bottom)
+    user_input = st.chat_input("Try: 'Who is the lead engineer?'", key="chat_input_main")
 
     if user_input:
-        # Display user message
-        with st.chat_message("user"):
-            st.markdown(user_input)
+        # Display user message in container immediately
+        with chat_container:
+            with st.chat_message("user"):
+                st.markdown(user_input)
 
         # Add to full history (ai will be filled after response)
         current_turn = {"human": user_input, "ai": ""}
@@ -646,25 +749,30 @@ with chat_col:
                 recent_window,
             )
         elif "L3" in selected_mode:
+            # Combine manual KB + all file chunks into one pool for retrieval
+            all_chunks = list(st.session_state.knowledge_base)
+            for file_chunk_list in st.session_state.file_chunks.values():
+                all_chunks.extend(file_chunk_list)
             # Perform retrieval
             with st.spinner("🔍 Searching Knowledge Base..."):
                 st.session_state.retrieved_chunks = simple_retrieval(
-                    user_input, st.session_state.knowledge_base, top_k
+                    user_input, all_chunks, top_k
                 )
             context_messages = build_context_l3(
                 system_prompt, st.session_state.full_history, st.session_state.retrieved_chunks
             )
 
         # Get AI response
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    response = llm.invoke(context_messages)
-                    ai_text = response.content
-                    st.markdown(ai_text)
-                except Exception as e:
-                    ai_text = f"Error: {str(e)}"
-                    st.error(ai_text)
+        with chat_container:
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    try:
+                        response = llm.invoke(context_messages)
+                        ai_text = response.content
+                        st.markdown(ai_text)
+                    except Exception as e:
+                        ai_text = f"Error: {str(e)}"
+                        st.error(ai_text)
 
         # Update history with AI response
         st.session_state.full_history[-1]["ai"] = ai_text
@@ -714,8 +822,25 @@ with inspector_col:
 
     # L2 summary display
     if "L2" in selected_mode and st.session_state.summary:
-        st.markdown("##### 📋 Current Summary Digest")
+        st.markdown("##### \U0001f4cb Current Summary Digest")
         st.info(st.session_state.summary)
+
+    # L3 retrieved chunk display
+    if "L3" in selected_mode:
+        total_pool = len(st.session_state.knowledge_base) + sum(
+            len(v) for v in st.session_state.file_chunks.values()
+        )
+        n_retrieved = len(st.session_state.retrieved_chunks)
+        st.markdown(
+            f"##### \U0001f4da RAG Search Pool: **{total_pool}** chunks"
+            f" &nbsp;&mdash;&nbsp; Retrieved: "
+            f"<span style='color:#22c55e;font-weight:700;'>{n_retrieved}</span>",
+            unsafe_allow_html=True,
+        )
+        if st.session_state.retrieved_chunks:
+            for i, chunk in enumerate(st.session_state.retrieved_chunks, 1):
+                with st.expander(f"Chunk {i} — {chunk[:60].strip()}...", expanded=True):
+                    st.markdown(chunk)
 
     # Raw JSON toggle
     with st.expander("📄 Raw API Payload (JSON)", expanded=False):
