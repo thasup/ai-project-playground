@@ -7,7 +7,7 @@ import os
 
 load_dotenv()
 
-embeddings = OpenAIEmbeddings()
+embeddings = OpenAIEmbeddings(openai_api_key=os.getenv("OPEN_ROUTER_API_KEY"), base_url="https://openrouter.ai/api/v1")
 
 db = Chroma(
   persist_directory="emb",
@@ -19,7 +19,8 @@ retriever = db.as_retriever()
 
 openai_llm = ChatOpenAI(
   model="gpt-3.5-turbo",
-  openai_api_key=os.getenv("OPENAI_API_KEY")
+  openai_api_key=os.getenv("OPEN_ROUTER_API_KEY"),
+  base_url="https://openrouter.ai/api/v1"
 )
 
 qa = RetrievalQA.from_chain_type(

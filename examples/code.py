@@ -27,7 +27,8 @@ explanation_prompt = ChatPromptTemplate.from_messages([
 # Create the chat model
 llm = ChatOpenAI(
     model="gpt-3.5-turbo",
-    openai_api_key=os.getenv("OPENAI_API_KEY")
+    openai_api_key=os.getenv("OPEN_ROUTER_API_KEY"),
+    base_url="https://openrouter.ai/api/v1"
 )
 
 # Create chains that combine the prompts and the model

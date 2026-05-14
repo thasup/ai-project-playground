@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage
 
 from langchain_core.messages import SystemMessage
 
+import os
 import streamlit as st
 from streamlit_chat import message
 
@@ -34,7 +35,7 @@ st.set_page_config(
   )
 st.subheader('Your Custom ChatGPT')
 
-chat = ChatOpenAI(model_name = 'gpt-3.5-turbo', temperature = 0.5)
+chat = ChatOpenAI(model_name='gpt-3.5-turbo', temperature=0.5, openai_api_key=os.getenv("OPEN_ROUTER_API_KEY"), base_url="https://openrouter.ai/api/v1")
 
 if 'messages' not in st.session_state:
     st.session_state.messages = memory.chat_memory.messages

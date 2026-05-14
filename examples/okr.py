@@ -40,7 +40,8 @@ alignment_prompt = ChatPromptTemplate.from_messages([
 # Create the OpenAI chat model
 openai_llm = ChatOpenAI(
     model="gpt-4o-mini",
-    openai_api_key=os.getenv("OPENAI_API_KEY")
+    openai_api_key=os.getenv("OPEN_ROUTER_API_KEY"),
+    base_url="https://openrouter.ai/api/v1"
 )
 
 # Create Gemini chat model for alignment checks

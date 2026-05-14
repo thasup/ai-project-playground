@@ -44,7 +44,7 @@ def embeddings_on_local_vectordb(texts):
     try:
         # Initialize embeddings
         vectordb = Chroma.from_documents(
-            texts, embedding=OpenAIEmbeddings(openai_api_key=st.session_state.openai_api_key),
+            texts, embedding=OpenAIEmbeddings(openai_api_key=st.session_state.openai_api_key, base_url="https://openrouter.ai/api/v1"),
             persist_directory=LOCAL_VECTOR_STORE_DIR.as_posix()
         )
         # Create a retriever from the vector database
@@ -85,7 +85,7 @@ def init_pinecone_vectorstore(embeddings):
 def embeddings_on_pinecone(texts):
     try:
         # Initialize embeddings
-        embeddings = OpenAIEmbeddings(openai_api_key=st.session_state.openai_api_key)
+        embeddings = OpenAIEmbeddings(openai_api_key=st.session_state.openai_api_key, base_url="https://openrouter.ai/api/v1")
 
         # Ensure Pinecone is initialized with the correct API key and environment
         vectorstore = init_pinecone_vectorstore(embeddings)
@@ -103,7 +103,7 @@ def embeddings_on_pinecone(texts):
 
 def query_llm(retriever, query):
     qa_chain = RetrievalQA.from_chain_type(
-        llm=ChatOpenAI(model="gpt-4o-mini", openai_api_key=st.session_state.openai_api_key),
+        llm=ChatOpenAI(model="gpt-4o-mini", openai_api_key=st.session_state.openai_api_key, base_url="https://openrouter.ai/api/v1"),
         retriever=retriever,
         chain_type="stuff"
     )
@@ -123,7 +123,7 @@ def input_fields():
         if "openai_api_key" in st.secrets:
             st.session_state.openai_api_key = st.secrets.openai_api_key
         else:
-            st.session_state.openai_api_key = st.text_input("OpenAI API key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
+            st.session_state.openai_api_key = st.text_input("OpenAI API key", type="password", value=os.getenv("OPEN_ROUTER_API_KEY", ""))
         #
         if "pinecone_api_key" in st.secrets:
             st.session_state.pinecone_api_key = st.secrets.pinecone_api_key
@@ -145,6 +145,7 @@ def input_fields():
     st.session_state.source_docs = st.file_uploader(label="Upload Documents", type="pdf", accept_multiple_files=True)
     #
     # Set API keys as environment variables
+    os.environ["OPEN_ROUTER_API_KEY"] = st.session_state.openai_api_key
     os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
     os.environ["PINECONE_API_KEY"] = st.session_state.pinecone_api_key
     os.environ["PINECONE_ENV"] = st.session_state.pinecone_env

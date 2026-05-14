@@ -55,7 +55,7 @@ st.set_page_config(
 with st.sidebar:
     st.sidebar.header("⚙️ Configuration")
     with st.expander("LLM Settings", expanded=True):
-            openai_api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
+            openai_api_key = st.text_input("OpenRouter API Key", type="password", value=os.getenv("OPEN_ROUTER_API_KEY", ""))
             google_api_key = st.text_input("Google API Key", type="password", value=os.getenv("GOOGLE_API_KEY", ""))
             model_provider = st.radio(
                 "Select Model Provider",
@@ -76,6 +76,7 @@ with st.sidebar:
                 )
 
 # Set API keys as environment variables
+os.environ["OPEN_ROUTER_API_KEY"] = openai_api_key
 os.environ["OPENAI_API_KEY"] = openai_api_key
 os.environ["GOOGLE_API_KEY"] = google_api_key
 
@@ -84,6 +85,7 @@ if model_provider == "OpenAI" and openai_api_key:
     llm = ChatOpenAI(
         model=model,
         openai_api_key=openai_api_key,
+        base_url="https://openrouter.ai/api/v1",
     )
 elif model_provider == "Google" and google_api_key:
     llm = ChatGoogleGenerativeAI(
@@ -146,7 +148,7 @@ if st.sidebar.button("Update System Prompt"):
 # Document Indexing Section
 # ========================
 persist_directory = "embeddings_db"  # directory to persist vector DB
-embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key, base_url="https://openrouter.ai/api/v1")
 
 # Create/update Chroma vector store
 db = Chroma.from_texts(st.session_state.text_chunks, embedding=embeddings)

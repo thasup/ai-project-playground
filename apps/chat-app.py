@@ -26,7 +26,7 @@ st.set_page_config(
 with st.sidebar:
     st.header("⚙️ Configuration")
     with st.expander("Model Settings", expanded=True):
-        openai_api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
+        openai_api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPEN_ROUTER_API_KEY", ""))
         google_api_key = st.text_input("Google API Key", type="password", value=os.getenv("GOOGLE_API_KEY", ""))
         model_provider = st.radio(
             "Select Model Provider",
@@ -72,6 +72,7 @@ with st.sidebar:
             st.success("System prompt updated!")
 
 # Set API keys as environment variables
+os.environ["OPEN_ROUTER_API_KEY"] = openai_api_key
 os.environ["OPENAI_API_KEY"] = openai_api_key
 os.environ["GOOGLE_API_KEY"] = google_api_key
 
@@ -80,6 +81,7 @@ if model_provider == "OpenAI" and openai_api_key:
     llm = ChatOpenAI(
         model=model,
         openai_api_key=openai_api_key,
+        base_url="https://openrouter.ai/api/v1",
         verbose=True  # Enable verbose logging
     )
 elif model_provider == "Google" and google_api_key:

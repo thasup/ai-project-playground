@@ -67,7 +67,7 @@ https://github.com/user-attachments/assets/c0e6cd68-8bbb-4975-8b32-e59df6de12b8
 
 3. **Create a `.env` file in the project root and add your API keys**:
    ```bash
-   OPENAI_API_KEY=your-openai-api-key-here
+   OPEN_ROUTER_API_KEY=your-open-router-api-key-here
    GOOGLE_API_KEY=your-google-api-key-here
    ```
 
@@ -107,7 +107,7 @@ The application can be configured through the web interface:
   - **Summary Memory**: Summarizes conversation history for efficiency.
   - **Buffer Memory**: Stores full conversation history.
 
-- **API Key**: Securely input your OpenAI and Google API keys in the sidebar.
+- **API Key**: Securely input your OpenRouter and Google API keys in the sidebar.
 
 ## 📝 Usage
 
